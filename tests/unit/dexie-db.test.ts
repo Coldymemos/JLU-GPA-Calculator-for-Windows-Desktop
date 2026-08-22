@@ -1,0 +1,70 @@
+import 'fake-indexeddb/auto';
+import { afterEach, describe, expect, it } from 'vitest';
+import { JluGpaDatabase } from '../../src/infrastructure/persistence/dexie-db';
+import { defaultRuleSet } from '../../src/domain/rules/recommendation.rules';
+import { makeCourse } from './test-course';
+
+const databases: JluGpaDatabase[] = [];
+
+function createDatabase(): JluGpaDatabase {
+  const database = new JluGpaDatabase(`jlu-gpa-test-${crypto.randomUUID()}`);
+  databases.push(database);
+  return database;
+}
+
+afterEach(async () => {
+  await Promise.all(
+    databases.splice(0).map(async (database) => {
+      database.close();
+      await database.delete();
+    })
+  );
+});
+
+describe('JluGpaDatabase', () => {
+  it('saves courses and settings for one local student', async () => {
+    const database = createDatabase();
+    const course = makeCourse('1', 92, 3);
+    await database.saveCourse(course);
+    await database.saveRuleSet(defaultRuleSet);
+    await database.saveSetting('active-rule-set', defaultRuleSet);
+
+    expect(await database.loadCourses()).toEqual([course]);
+    expect(await database.loadRuleSet(defaultRuleSet.id)).toEqual(defaultRuleSet);
+    expect(await database.loadSetting('active-rule-set')).toEqual(defaultRuleSet);
+  });
+
+  it('rolls back an entire replacement when bulk insert fails', async () => {
+    const database = createDatabase();
+    const original = makeCourse('original', 88, 2);
+    await database.saveCourse(original);
+    const duplicate = makeCourse('duplicate', 90, 2);
+
+    await expect(database.replaceCourses([duplicate, duplicate])).rejects.toThrow();
+    expect(await database.loadCourses()).toEqual([original]);
+  });
+
+  it('clears all courses without removing saved rules and settings', async () => {
+    const database = createDatabase();
+    await database.saveCourse(makeCourse('1', 92, 3));
+    await database.saveRuleSet(defaultRuleSet);
+    await database.saveSetting('active-rule-set', defaultRuleSet);
+
+    await database.clearCourses();
+
+    expect(await database.loadCourses()).toEqual([]);
+    expect(await database.loadRuleSet(defaultRuleSet.id)).toEqual(defaultRuleSet);
+    expect(await database.loadSetting('active-rule-set')).toEqual(defaultRuleSet);
+  });
+
+  it('reports whether any local data exists and treats cleared data as a fresh start', async () => {
+    const database = createDatabase();
+    expect(await database.hasAnyData()).toBe(false);
+
+    await database.saveCourse(makeCourse('1', 92, 3));
+    expect(await database.hasAnyData()).toBe(true);
+
+    await database.clearAllData();
+    expect(await database.hasAnyData()).toBe(false);
+  });
+});
