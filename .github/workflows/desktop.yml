@@ -37,19 +37,30 @@ jobs:
       - name: Run frontend quality checks
         run: pnpm check
 
-      - name: Build Windows bundles
+      - name: Build Windows bundles for CI
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: tauri-apps/tauri-action@v1.0.0
+
+      - name: Build and attach installers to GitHub Release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         uses: tauri-apps/tauri-action@v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
-          releaseName: ${{ startsWith(github.ref, 'refs/tags/v') && format('JLU GPA Desktop {0}', github.ref_name) || '' }}
-          releaseBody: Windows installers for JLU GPA Desktop.
+          tagName: ${{ github.ref_name }}
+          releaseName: JLU GPA Desktop ${{ github.ref_name }}
+          releaseBody: |
+            Windows installers for JLU GPA Desktop.
+
+            - `.exe`: recommended installer for most users
+            - `.msi`: Windows Installer package
           releaseDraft: true
           prerelease: false
+          generateReleaseNotes: true
           uploadUpdaterJson: false
 
       - name: Upload Windows installers
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v4
         with:
           name: jlu-gpa-desktop-windows-${{ github.sha }}

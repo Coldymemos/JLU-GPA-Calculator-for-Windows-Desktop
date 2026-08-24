@@ -19,6 +19,8 @@ import {
 import { useRef, useState } from 'react';
 import { defaultAutoBackupSettings, type AutoBackupSettings } from '../../application/auto-backup';
 
+const repositoryUrl = 'https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop';
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -67,7 +69,7 @@ export function AboutDialog({
       open={open}
       title="关于 JLU GPA"
       footer={null}
-      width={560}
+      width={760}
       className="about-dialog"
       onCancel={onClose}
     >
@@ -80,20 +82,18 @@ export function AboutDialog({
       <Typography.Paragraph>
         面向吉林大学本科生的本地优先绩点核算桌面应用，可计算保研 GPA、加权平均分和算术平均分。
       </Typography.Paragraph>
-      <Descriptions column={1} size="small" bordered>
+      <Descriptions column={{ xs: 1, sm: 2 }} size="small" bordered>
         <Descriptions.Item label="版本">正式版 v1.0.1</Descriptions.Item>
-        <Descriptions.Item label="项目地址">
-          <Typography.Link
-            href="https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop"
-            target="_blank"
-            rel="noopener noreferrer"
+        <Descriptions.Item label="作者">Coldymemos · DailyPotato（共同作者）</Descriptions.Item>
+        <Descriptions.Item label="项目地址" span={{ xs: 1, sm: 2 }}>
+          <Typography.Text
+            className="about-project-address"
+            copyable={{ text: repositoryUrl, tooltips: ['复制地址', '已复制'] }}
           >
-            Desktop GitHub 仓库
-          </Typography.Link>
+            {repositoryUrl}
+          </Typography.Text>
         </Descriptions.Item>
-        <Descriptions.Item label="作者">Coldymemos</Descriptions.Item>
-        <Descriptions.Item label="共同作者">DailyPotato</Descriptions.Item>
-        <Descriptions.Item label="开源与使用">
+        <Descriptions.Item label="开源与使用" span={{ xs: 1, sm: 2 }}>
           本项目源码按 PolyForm Noncommercial License 1.0.0
           提供，允许非商业使用、研究、修改和分享；商业用途需事先取得作者授权。
         </Descriptions.Item>
@@ -101,7 +101,7 @@ export function AboutDialog({
       <Divider plain className="about-reset-divider">
         数据管理
       </Divider>
-      <Space orientation="vertical" className="full-width">
+      <div className="about-action-grid">
         {onBackupDatabase && (
           <Button block onClick={onBackupDatabase}>
             备份 SQLite 数据库
@@ -129,7 +129,7 @@ export function AboutDialog({
             if (file) onImportData(file);
           }}
         />
-      </Space>
+      </div>
       {onSaveAutoBackup && (
         <>
           <Divider plain className="about-reset-divider">

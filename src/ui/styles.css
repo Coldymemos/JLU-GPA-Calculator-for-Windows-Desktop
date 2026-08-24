@@ -1019,6 +1019,20 @@ textarea {
   }
 }
 
+.about-project-address {
+  overflow-wrap: anywhere;
+  color: #475467;
+  font-family: 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+  font-size: 12px;
+  user-select: text;
+}
+
+.about-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 @media (max-width: 640px) {
   .workspace-header {
     flex-direction: column;
@@ -1104,6 +1118,10 @@ textarea {
   .about-dialog .ant-modal-body {
     max-height: calc(100dvh - 96px);
     overflow-y: auto;
+  }
+
+  .about-action-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   /* 移动端：隐藏桌面内嵌侧边栏，改用汉堡菜单 + 抽屉 */
