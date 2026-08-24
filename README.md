@@ -15,9 +15,10 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-f39c12" alt="PolyForm Noncommercial License" /></a>
 </p>
 
-> 网页端使用请移步" https://github.com/DailyPotato/JLU-GPA-Calculator "并使用GithubPages进入
+网页端版本请前往 [JLU GPA Calculator for Web](https://github.com/DailyPotato/JLU-GPA-Calculator) 查看。桌面端与网页端数据相互独立。
 
 JLU GPA Desktop 可以在本机管理课程成绩，计算保研 GPA、加权平均分和算术平均分，并模拟未来还需要修读多少课程、取得什么成绩才能达到目标。所有课程数据和计算过程均保存在本机，不需要上传成绩单。
+
 > 走过路过点个star谢谢喵！
 
 > [!IMPORTANT]
@@ -97,7 +98,7 @@ pnpm tauri dev
 | `pnpm check`       | 运行 lint、格式、测试、类型检查和前端生产构建 |
 | `pnpm tauri build` | 生成 Windows 应用、MSI 和 NSIS 安装包         |
 
-项目使用 React、TypeScript、Tauri 2 和 SQLite。更详细的设计背景、实现范围和施工记录保留在[本地化功能规划](本地化功能规划.md)与[施工细节文档](施工细节文档.md)中。
+项目使用 React、TypeScript、Tauri 2 和 SQLite。
 
 ## 反馈与贡献
 
