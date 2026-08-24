@@ -87,4 +87,6 @@ GitHub Actions 在 Windows runner 上执行 `pnpm check` 并生成 MSI/NSIS。�
 
 ## License
 
-项目基于 [GNU General Public License v3.0](LICENSE) 开源，仅供学习与个人使用，请勿用于商业用途。
+本项目源码按 [PolyForm Noncommercial License 1.0.0](LICENSE) 提供。允许在非商业目的下使用、研究、修改和分享；任何商业用途均需事先取得作者授权。
+
+PolyForm Noncommercial 不是 OSI 认可的开源许可证，因此本项目对外定位为“源码可用（source-available）”软件，而非 OSI 定义下的开源软件。

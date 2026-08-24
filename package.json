@@ -6,8 +6,10 @@
   "type": "module",
   "description": "Windows desktop GPA and average score calculator for Jilin University undergraduates.",
   "author": "Coldymemos",
-  "contributors": ["DailyPotato"],
-  "license": "GPL-3.0-only",
+  "contributors": [
+    "DailyPotato"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop.git"

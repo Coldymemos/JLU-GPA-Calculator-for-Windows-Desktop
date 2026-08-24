@@ -94,7 +94,8 @@ export function AboutDialog({
         <Descriptions.Item label="作者">Coldymemos</Descriptions.Item>
         <Descriptions.Item label="共同作者">DailyPotato</Descriptions.Item>
         <Descriptions.Item label="开源与使用">
-          本项目基于 GPL v3.0 协议开源，仅供学习与个人使用，请勿用于商业用途。
+          本项目源码按 PolyForm Noncommercial License 1.0.0
+          提供，允许非商业使用、研究、修改和分享；商业用途需事先取得作者授权。
         </Descriptions.Item>
       </Descriptions>
       <Divider plain className="about-reset-divider">
