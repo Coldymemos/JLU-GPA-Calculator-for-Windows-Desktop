@@ -15,7 +15,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-f39c12" alt="PolyForm Noncommercial License" /></a>
 </p>
 
-> 网页端使用请移步https://github.com/DailyPotato/JLU-GPA-Calculator并使用GithubPages进入
+> 网页端使用请移步" https://github.com/DailyPotato/JLU-GPA-Calculator "并使用GithubPages进入
 
 JLU GPA Desktop 可以在本机管理课程成绩，计算保研 GPA、加权平均分和算术平均分，并模拟未来还需要修读多少课程、取得什么成绩才能达到目标。所有课程数据和计算过程均保存在本机，不需要上传成绩单。
 
