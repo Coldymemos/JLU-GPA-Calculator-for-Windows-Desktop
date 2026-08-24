@@ -1,6 +1,6 @@
 [package]
 name = "jlu-gpa-calculator-desktop"
-version = "1.0.1"
+version = "1.0.2"
 description = "Windows desktop GPA calculator for Jilin University undergraduates"
 authors = ["Coldymemos", "DailyPotato"]
 license = "PolyForm-Noncommercial-1.0.0"

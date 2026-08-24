@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop/actions/workflows/desktop.yml"><img src="https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop/actions/workflows/desktop.yml/badge.svg" alt="Windows 构建状态" /></a>
-  <img src="https://img.shields.io/badge/version-1.0.1-8f2c3e" alt="当前版本 1.0.1" />
+  <img src="https://img.shields.io/badge/version-1.0.2-8f2c3e" alt="当前版本 1.0.2" />
   <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4?logo=windows" alt="支持 Windows 10 和 Windows 11" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-f39c12" alt="PolyForm Noncommercial License" /></a>
 </p>
