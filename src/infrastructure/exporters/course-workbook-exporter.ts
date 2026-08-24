@@ -78,6 +78,11 @@ export function buildAdaptedCourseRows(
   }));
 }
 
+export interface ExportPayload {
+  fileName: string;
+  bytes: Uint8Array;
+}
+
 function timestamp(): string {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
@@ -85,7 +90,7 @@ function timestamp(): string {
 export async function exportAdaptedCourseWorkbook(
   courses: Course[],
   results: CalculationResult[] = []
-): Promise<void> {
+): Promise<ExportPayload> {
   if (courses.length === 0) throw new Error('没有可导出的课程');
   const XLSX = await import('xlsx');
   const sheet = XLSX.utils.json_to_sheet(buildAdaptedCourseRows(courses, results), {
@@ -96,5 +101,6 @@ export async function exportAdaptedCourseWorkbook(
   }));
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, '课程与排除状态');
-  XLSX.writeFile(workbook, `JLU-GPA-适配课程-${timestamp()}.xlsx`, { compression: true });
+  const bytes = XLSX.write(workbook, { type: 'array', bookType: 'xlsx', compression: true });
+  return { fileName: `JLU-GPA-适配课程-${timestamp()}.xlsx`, bytes: new Uint8Array(bytes) };
 }

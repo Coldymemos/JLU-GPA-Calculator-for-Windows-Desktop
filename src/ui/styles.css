@@ -769,6 +769,39 @@ textarea {
   background: #f5faf6;
 }
 
+/* M5 导出直写：目录卡片复用适配表格卡片的栅格布局 */
+.export-directory-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #dfe3e8;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+
+.future-planning-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, 0.8fr) minmax(160px, 0.9fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  background: #fafbfc;
+  border: 1px solid #dfe3e8;
+  border-radius: 6px;
+}
+
+.future-planning-controls > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.future-planning-drawer .ant-table {
+  background: #ffffff;
+}
+
 .adapted-export-icon {
   display: grid;
   width: 38px;

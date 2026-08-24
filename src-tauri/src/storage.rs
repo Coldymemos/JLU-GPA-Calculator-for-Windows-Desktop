@@ -511,6 +511,48 @@ pub fn restore_from(app: &tauri::AppHandle, source: &std::path::Path) -> Result<
     Ok(digest)
 }
 
+/// 自动备份文件的前缀；`prune_backups` 只清理此前缀的备份，避免误删用户其他 SQLite 文件。
+pub const AUTO_BACKUP_PREFIX: &str = "JLU-GPA-备份-";
+
+/// 清理备份目录：仅保留最近 `keep` 份自动备份（连同 `.sha256` sidecar），
+/// 返回被删除的文件路径列表。目录不存在时视为空操作。
+pub fn prune_backups(dir: &std::path::Path, keep: usize) -> Result<Vec<String>, String> {
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut backups: Vec<PathBuf> = fs::read_dir(dir)
+        .map_err(|error| format!("读取备份目录失败：{error}"))?
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.is_file()
+                && path.extension().and_then(|value| value.to_str()) == Some("sqlite3")
+                && path
+                    .file_name()
+                    .and_then(|value| value.to_str())
+                    .map(|name| name.starts_with(AUTO_BACKUP_PREFIX))
+                    .unwrap_or(false)
+        })
+        .collect();
+    backups.sort_by_key(|path| {
+        fs::metadata(path)
+            .and_then(|meta| meta.modified())
+            .ok()
+            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|duration| duration.as_secs())
+            .unwrap_or(0)
+    });
+    backups.reverse();
+
+    let mut removed = Vec::new();
+    for path in backups.iter().skip(keep) {
+        let _ = fs::remove_file(path);
+        let _ = fs::remove_file(checksum_path(path));
+        removed.push(path.to_string_lossy().into_owned());
+    }
+    Ok(removed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -617,6 +659,16 @@ mod tests {
         ))
     }
 
+    fn temporary_dir(label: &str) -> PathBuf {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("jlu-gpa-{label}-{}-{nonce}", std::process::id()));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
     #[test]
     fn backup_is_valid_and_checksum_mismatch_is_rejected() {
         let source = Connection::open_in_memory().unwrap();
@@ -639,6 +691,43 @@ mod tests {
         fs::write(&path, b"not a sqlite database").unwrap();
         assert!(validate_backup(&path).is_err());
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn prune_backups_keeps_newest_and_only_auto_prefix() {
+        let root = temporary_dir("prune");
+        let base = std::time::SystemTime::now();
+        for day in 1..=4 {
+            let path = root.join(format!("JLU-GPA-备份-2026-08-0{day}.sqlite3"));
+            fs::write(&path, format!("backup {day}")).unwrap();
+            fs::write(checksum_path(&path), format!("checksum {day}")).unwrap();
+            // 显式设置不同的修改时间，保证排序确定（越晚创建的越新）
+            let modified = base - std::time::Duration::from_secs((4 - day) * 60);
+            let file = File::open(&path).unwrap();
+            let _ = file.set_modified(modified);
+        }
+        // 无关文件不应被清理
+        let unrelated = root.join("别的数据.sqlite3");
+        fs::write(&unrelated, b"keep").unwrap();
+
+        let removed = prune_backups(&root, 2).unwrap();
+        assert_eq!(removed.len(), 2);
+        assert!(removed.iter().any(|path| path.contains("2026-08-01")));
+        assert!(removed.iter().any(|path| path.contains("2026-08-02")));
+        // 保留最新两份
+        assert!(root.join("JLU-GPA-备份-2026-08-03.sqlite3").exists());
+        assert!(root.join("JLU-GPA-备份-2026-08-04.sqlite3").exists());
+        assert!(unrelated.exists());
+
+        let all = prune_backups(&root, 0).unwrap();
+        assert_eq!(all.len(), 2);
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn prune_backups_is_noop_for_missing_directory() {
+        let missing = std::env::temp_dir().join("jlu-gpa-不存在-目录");
+        assert!(prune_backups(&missing, 2).unwrap().is_empty());
     }
 
     #[test]

@@ -2,17 +2,39 @@ import { App as AntApp, ConfigProvider, theme } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { Course, ResultKind } from '../domain/course/course.types';
-import { exportAdaptedCourseWorkbook } from '../infrastructure/exporters/course-workbook-exporter';
-import { exportResultPdf, exportResultPng } from '../infrastructure/exporters/result-exporter';
+import {
+  exportAdaptedCourseWorkbook,
+  type ExportPayload
+} from '../infrastructure/exporters/course-workbook-exporter';
+import {
+  dataUrlToBytes,
+  renderResultPdf,
+  renderResultPng
+} from '../infrastructure/exporters/result-exporter';
+import {
+  downloadExport,
+  LAST_EXPORT_DIRECTORY_SETTING,
+  pickExportDirectory,
+  writeExportFile
+} from '../infrastructure/desktop/direct-export';
+import {
+  AUTO_BACKUP_LAST_RUN_KEY,
+  AUTO_BACKUP_SETTING_KEY,
+  shouldRunAutoBackup,
+  type AutoBackupSettings
+} from '../application/auto-backup';
 import { downloadFilterConfig, parseFilterConfigFile } from '../infrastructure/filter-config';
 import { downloadFullData, parseFullDataFile } from '../infrastructure/persistence/data-transfer';
 import {
   backupDesktopDatabase,
   isDesktopRuntime,
+  pickBackupDirectory,
   restoreDesktopDatabase,
+  runAutoBackup,
   selectDesktopBackup,
   validateDesktopBackup
 } from '../infrastructure/persistence/desktop-backup';
+import { database } from '../infrastructure/persistence';
 import { AboutDialog } from './components/AboutDialog';
 import { AppShell } from './components/AppShell';
 import { ArchiveDialog } from './components/ArchiveDialog';
@@ -20,6 +42,7 @@ import { ComparisonDrawer } from './components/ComparisonDrawer';
 import { CourseDrawer } from './components/CourseDrawer';
 import { CourseWorkspace } from './components/CourseWorkspace';
 import { ExportDrawer } from './components/ExportDrawer';
+import { FuturePlanningDrawer } from './components/FuturePlanningDrawer';
 import { ImportDrawer } from './components/ImportDialog';
 import { ResultExportCard } from './components/ResultExportCard';
 import {
@@ -79,6 +102,8 @@ function Workbench() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course>();
   const [exporting, setExporting] = useState(false);
+  const [exportDirectory, setExportDirectory] = useState<string>();
+  const [autoBackup, setAutoBackup] = useState<AutoBackupSettings>();
   const [generatedAt, setGeneratedAt] = useState(() => new Date());
   const [workspaceVersion, setWorkspaceVersion] = useState(0);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -86,6 +111,48 @@ function Workbench() {
   useEffect(() => {
     if (persistenceError) app.message.error(persistenceError);
   }, [app.message, persistenceError]);
+
+  // 桌面端：恢复上次选择的导出目录（M5 导出直写）
+  useEffect(() => {
+    if (!isDesktopRuntime) return;
+    let cancelled = false;
+    void database
+      .loadSetting<string>(LAST_EXPORT_DIRECTORY_SETTING)
+      .then((saved) => {
+        if (!cancelled && saved) setExportDirectory(saved);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 桌面端：M5 定时备份调度（每分钟检查一次，应用运行期间有效）
+  useEffect(() => {
+    if (!isDesktopRuntime) return;
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        const settings = await database.loadSetting<AutoBackupSettings>(AUTO_BACKUP_SETTING_KEY);
+        if (!settings) return;
+        setAutoBackup(settings);
+        const lastRun = await database.loadSetting<string>(AUTO_BACKUP_LAST_RUN_KEY);
+        if (!shouldRunAutoBackup(settings, lastRun)) return;
+        const path = await runAutoBackup(settings);
+        await database.saveSetting(AUTO_BACKUP_LAST_RUN_KEY, new Date().toISOString());
+        app.message.success(`已自动备份数据库：${path}`);
+      } catch {
+        // 自动备份失败静默处理，下个周期重试
+      }
+    };
+    const timer = window.setInterval(() => void tick(), 60_000);
+    void tick();
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [app.message]);
 
   const resultByKind = useMemo(
     () => ({
@@ -121,15 +188,29 @@ function Workbench() {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     );
     try {
+      let payload: ExportPayload;
       if (format === 'xlsx') {
-        await exportAdaptedCourseWorkbook(courses, [
+        payload = await exportAdaptedCourseWorkbook(courses, [
           results.recommendationGpa,
           results.weightedAverage,
           results.arithmeticAverage
         ]);
-      } else if (format === 'png') await exportResultPng(exportRef.current!);
-      else await exportResultPdf(exportRef.current!);
-      app.message.success(format === 'xlsx' ? '已导出适配表格' : `已导出 ${format.toUpperCase()}`);
+      } else if (format === 'png') {
+        const rendered = await renderResultPng(exportRef.current!);
+        payload = { fileName: rendered.fileName, bytes: dataUrlToBytes(rendered.dataUrl) };
+      } else {
+        const rendered = await renderResultPdf(exportRef.current!);
+        payload = { fileName: rendered.fileName, bytes: dataUrlToBytes(rendered.dataUrl) };
+      }
+      if (isDesktopRuntime && exportDirectory) {
+        const fullPath = await writeExportFile(exportDirectory, payload);
+        app.message.success(`已导出到 ${fullPath}`);
+      } else {
+        downloadExport(payload);
+        app.message.success(
+          format === 'xlsx' ? '已导出适配表格' : `已导出 ${format.toUpperCase()}`
+        );
+      }
     } catch (error) {
       app.message.error(error instanceof Error ? error.message : '导出失败');
     } finally {
@@ -351,6 +432,14 @@ function Workbench() {
           onClose={() => setActivePanel(undefined)}
         />
       )}
+      {activePanel === 'planning' && (
+        <FuturePlanningDrawer
+          open
+          courses={courses}
+          rules={rules}
+          onClose={() => setActivePanel(undefined)}
+        />
+      )}
       {activePanel === 'export' && (
         <ExportDrawer
           open
@@ -358,6 +447,20 @@ function Workbench() {
           calculated={hasCalculated}
           courseCount={courses.length}
           exporting={exporting}
+          exportDirectory={exportDirectory}
+          onPickDirectory={
+            isDesktopRuntime
+              ? async () => {
+                  const dir = await pickExportDirectory();
+                  if (!dir) return;
+                  setExportDirectory(dir);
+                  await database
+                    .saveSetting(LAST_EXPORT_DIRECTORY_SETTING, dir)
+                    .catch(() => undefined);
+                  app.message.success('导出目录已更新');
+                }
+              : undefined
+          }
           onClose={() => setActivePanel(undefined)}
           onExport={exportResult}
         />
@@ -405,6 +508,7 @@ function Workbench() {
         onSave={saveCourse}
       />
       <AboutDialog
+        key={aboutOpen || (firstVisit && !welcomeDismissed) ? 'about-open' : 'about-closed'}
         open={aboutOpen || (firstVisit && !welcomeDismissed)}
         onClose={() => {
           setAboutOpen(false);
@@ -475,6 +579,25 @@ function Workbench() {
                     });
                   })
                   .catch((error: unknown) => app.message.error(String(error)));
+              }
+            : undefined
+        }
+        autoBackup={autoBackup}
+        onSaveAutoBackup={
+          isDesktopRuntime
+            ? async (settings) => {
+                setAutoBackup(settings);
+                await database.saveSetting(AUTO_BACKUP_SETTING_KEY, settings);
+                app.message.success('自动备份设置已保存');
+              }
+            : undefined
+        }
+        onPickBackupDirectory={
+          isDesktopRuntime
+            ? async () => {
+                const directory = await pickBackupDirectory();
+                if (directory) app.message.success('已选择自动备份目录');
+                return directory;
               }
             : undefined
         }

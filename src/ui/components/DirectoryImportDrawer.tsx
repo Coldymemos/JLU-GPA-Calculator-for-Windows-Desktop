@@ -16,6 +16,7 @@ import {
   Typography
 } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { UnlistenFn } from '@tauri-apps/api/event';
 import {
   parseSpreadsheet,
   runFileImportQueue,
@@ -32,9 +33,11 @@ import type {
 } from '../../infrastructure/importers/sniffer';
 import {
   type CandidateFile,
+  onNewFileInDirectory,
   pickImportDirectory,
   readFileBytes,
   scanDirectory,
+  setDirectoryWatch,
   sniffSpreadsheetBuffer
 } from '../../infrastructure/desktop/directory-importer';
 import { database } from '../../infrastructure/persistence';
@@ -112,9 +115,64 @@ export function DirectoryImportDrawer({ open, onCancel, onCommit }: Props) {
     const picked = await pickImportDirectory();
     if (!picked) return;
     setDir(picked);
+    dirRef.current = picked;
     void database.saveSetting(LAST_DIRECTORY_SETTING, picked).catch(() => undefined);
     void scan(picked, recursive);
   };
+
+  // M5.1 目录监听：新文件事件 → 500ms 防抖后重新扫描
+  const watchUnlisten = useRef<UnlistenFn | undefined>(undefined);
+  const watchDebounce = useRef<number | undefined>(undefined);
+  const dirRef = useRef<string | undefined>(undefined);
+  const [watching, setWatching] = useState(false);
+
+  const handleNewFile = () => {
+    if (watchDebounce.current) window.clearTimeout(watchDebounce.current);
+    watchDebounce.current = window.setTimeout(() => {
+      const target = dirRef.current;
+      if (target) {
+        void scan(target, recursive);
+        app.message.info('检测到新文件，已重新扫描目录');
+      }
+    }, 500);
+  };
+
+  const stopWatch = async () => {
+    watchUnlisten.current?.();
+    watchUnlisten.current = undefined;
+    if (watchDebounce.current) window.clearTimeout(watchDebounce.current);
+    watchDebounce.current = undefined;
+    await setDirectoryWatch(dirRef.current ?? '', false).catch(() => undefined);
+    setWatching(false);
+  };
+
+  const toggleWatch = async (checked: boolean) => {
+    if (!dirRef.current) return;
+    if (!checked) {
+      await stopWatch();
+      app.message.info('已停止目录监听');
+      return;
+    }
+    try {
+      const unlisten = await onNewFileInDirectory(handleNewFile);
+      await setDirectoryWatch(dirRef.current, true);
+      watchUnlisten.current = unlisten;
+      setWatching(true);
+      app.message.info(`已监听目录变化：${dirRef.current}`);
+    } catch (error) {
+      app.message.error(error instanceof Error ? error.message : '启动目录监听失败');
+    }
+  };
+
+  // 卸载时取消订阅并停止监听
+  useEffect(
+    () => () => {
+      watchUnlisten.current?.();
+      if (watchDebounce.current) window.clearTimeout(watchDebounce.current);
+      void setDirectoryWatch(dirRef.current ?? '', false).catch(() => undefined);
+    },
+    []
+  );
 
   const sniffAll = async (targets = files) => {
     if (!targets.length) return;
@@ -156,6 +214,7 @@ export function DirectoryImportDrawer({ open, onCancel, onCommit }: Props) {
       .then((saved) => {
         if (!cancelled && saved) {
           setDir(saved);
+          dirRef.current = saved;
           void scan(saved, recursive);
         }
       })
@@ -184,7 +243,7 @@ export function DirectoryImportDrawer({ open, onCancel, onCommit }: Props) {
     sha256: sha256Hex,
     sniff: sniffSpreadsheetBuffer,
     parse: parseSpreadsheet,
-    commit: async (courses: Course[]) => onCommit(courses, 'append'),
+    commit: async (courses: Course[], mode: ImportMergeMode) => onCommit(courses, mode),
     onFile: (report: FileImportReport) => setReports((previous) => [...previous, report])
   });
 
@@ -220,12 +279,12 @@ export function DirectoryImportDrawer({ open, onCancel, onCommit }: Props) {
     }
   };
 
-  const retryFile = async (path: string) => {
+  const retryFile = async (path: string, mode?: 'append' | 'replace') => {
     const file = files.find((candidate) => candidate.path === path);
     if (!file) return;
     setRunning(true);
     try {
-      await runFileImportQueue([{ file, sheet: sheetRetry[path] }], createQueueDeps());
+      await runFileImportQueue([{ file, sheet: sheetRetry[path], mode }], createQueueDeps());
     } catch (error) {
       app.message.error(error instanceof Error ? error.message : '导入失败');
     } finally {
@@ -337,6 +396,27 @@ export function DirectoryImportDrawer({ open, onCancel, onCommit }: Props) {
             </Space>
           );
         }
+        if (report?.outcome === 'skipped-duplicate') {
+          // M5 冲突处理：内容重复文件可追加/覆盖重新导入
+          return (
+            <Space size={4}>
+              <Button
+                size="small"
+                disabled={running}
+                onClick={() => void retryFile(file.path, 'append')}
+              >
+                追加导入
+              </Button>
+              <Button
+                size="small"
+                disabled={running}
+                onClick={() => void retryFile(file.path, 'replace')}
+              >
+                覆盖导入
+              </Button>
+            </Space>
+          );
+        }
         if (report?.outcome === 'failed' || report?.outcome === 'skipped') {
           return (
             <Button size="small" disabled={running} onClick={() => void retryFile(file.path)}>
@@ -416,6 +496,16 @@ export function DirectoryImportDrawer({ open, onCancel, onCommit }: Props) {
               }}
             />
             <Typography.Text type="secondary">包含子目录</Typography.Text>
+          </Space>
+          <Space size={6}>
+            <Switch
+              checked={watching}
+              disabled={!dir || scanning}
+              onChange={(checked) => void toggleWatch(checked)}
+            />
+            <Tooltip title="目录内新增成绩文件后自动重新扫描（500ms 防抖）">
+              <Typography.Text type="secondary">监听目录变化</Typography.Text>
+            </Tooltip>
           </Space>
           {dir && (
             <Button

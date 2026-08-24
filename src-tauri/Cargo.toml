@@ -26,3 +26,4 @@ tauri-plugin-log = "2"
 rusqlite = { version = "0.37", features = ["backup", "bundled"] }
 sha2 = "0.10"
 tauri-plugin-dialog = "2"
+notify = "8"

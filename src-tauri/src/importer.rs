@@ -1,14 +1,14 @@
-//! M3 目录批量导入的 Rust 侧文件 IO 能力。
+//! M3 目录批量导入与 M5 文件直写的 Rust 侧文件 IO 能力。
 //!
 //! 设计约束：
-//! - **文件名不可靠原则**：本模块只负责「按扩展名过滤候选」「SHA-256 指纹」「读取字节」，
+//! - **文件名不可靠原则**：本模块只负责「按扩展名过滤候选」「SHA-256 指纹」「读取/写入字节」，
 //!   不做任何基于文件名的语义识别；格式与表头识别由前端内容嗅探完成（复用 SheetJS 解析链路）。
 //! - 受控授权：所有路径均来自用户在目录选择器中显式选择的目录，命令不接受任意路径写操作。
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::time::UNIX_EPOCH;
 
@@ -137,6 +137,21 @@ fn to_hex(bytes: impl AsRef<[u8]>) -> String {
     output
 }
 
+/// 将字节写入指定路径（M5 导出直写）。
+/// 自动创建父目录；拒绝把目录本身当作写入目标。
+pub fn write_file_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    if path.is_dir() {
+        return Err(format!("导出路径是目录：{}", path.display()));
+    }
+    let parent = path
+        .parent()
+        .ok_or_else(|| "导出路径缺少父目录".to_string())?;
+    fs::create_dir_all(parent).map_err(|error| format!("创建导出目录失败：{error}"))?;
+    let mut file = fs::File::create(path).map_err(|error| format!("创建导出文件失败：{error}"))?;
+    file.write_all(bytes)
+        .map_err(|error| format!("写入导出文件失败：{error}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,6 +240,27 @@ mod tests {
     fn read_file_bytes_rejects_directories() {
         let root = temporary_dir("readdir");
         assert!(read_file_bytes(&root).is_err());
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn write_file_bytes_creates_parent_and_round_trips() {
+        let root = temporary_dir("write");
+        let nested = root.join("a").join("b");
+        let path = nested.join("result.png");
+        let bytes = b"\x89PNG fake export content";
+        write_file_bytes(&path, bytes).unwrap();
+        assert_eq!(read_file_bytes(&path).unwrap(), bytes);
+        // 覆盖写入同路径成功
+        write_file_bytes(&path, b"updated").unwrap();
+        assert_eq!(read_file_bytes(&path).unwrap(), b"updated");
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn write_file_bytes_rejects_directory_target() {
+        let root = temporary_dir("write-dir");
+        assert!(write_file_bytes(&root, b"x").is_err());
         fs::remove_dir_all(root).ok();
     }
 }

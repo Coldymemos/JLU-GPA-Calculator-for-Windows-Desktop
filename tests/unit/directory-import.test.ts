@@ -24,13 +24,16 @@ const headerRows = [
 
 function makeOptions(overrides: Partial<ImportQueueOptions> = {}) {
   const files = new Map<string, Uint8Array>();
-  const commit = vi.fn(async (courses: Course[]): Promise<MergeResult> => ({
-    courses,
-    addedCount: courses.length,
-    replacedCount: 0,
-    exactDuplicateCount: 0,
-    restoredExclusionCount: 0
-  }));
+  const commit = vi.fn(async (courses: Course[], _mode?: string): Promise<MergeResult> => {
+    void _mode;
+    return {
+      courses,
+      addedCount: courses.length,
+      replacedCount: 0,
+      exactDuplicateCount: 0,
+      restoredExclusionCount: 0
+    };
+  });
   const onFile = vi.fn();
   const options: ImportQueueOptions = {
     seenHashes: new Set<string>(),
@@ -154,5 +157,35 @@ describe('runFileImportQueue（M3 批量导入队列）', () => {
     const retry = await runFileImportQueue([{ file: goodFile }], options);
     expect(retry).toEqual({ imported: 1, skipped: 0, failed: 0, duplicate: 0 });
     expect(options.seenHashes.size).toBe(1);
+  });
+
+  it('M5 冲突处理：重复文件可按追加/覆盖模式绕过去重重新导入', async () => {
+    const { files, commit, onFile, options } = makeOptions();
+    const bytes = xlsxBytes(headerRows);
+    files.set('/dir/一.xlsx', bytes);
+    files.set('/dir/二.xlsx', bytes);
+    const first = await runFileImportQueue(
+      [
+        { file: { ...goodFile, path: '/dir/一.xlsx', name: '一.xlsx' } },
+        { file: { ...goodFile, path: '/dir/二.xlsx', name: '二.xlsx' } }
+      ],
+      options
+    );
+    expect(first).toEqual({ imported: 1, skipped: 0, failed: 0, duplicate: 1 });
+
+    const replaced = await runFileImportQueue(
+      [{ file: { ...goodFile, path: '/dir/二.xlsx', name: '二.xlsx' }, mode: 'replace' }],
+      options
+    );
+    expect(replaced).toEqual({ imported: 1, skipped: 0, failed: 0, duplicate: 0 });
+    expect(commit).toHaveBeenLastCalledWith(expect.any(Array), 'replace');
+
+    const appended = await runFileImportQueue(
+      [{ file: { ...goodFile, path: '/dir/二.xlsx', name: '二.xlsx' }, mode: 'append' }],
+      options
+    );
+    expect(appended).toEqual({ imported: 1, skipped: 0, failed: 0, duplicate: 0 });
+    expect(commit).toHaveBeenLastCalledWith(expect.any(Array), 'append');
+    expect(onFile.mock.calls.at(-1)?.[0]).toMatchObject({ outcome: 'imported' });
   });
 });

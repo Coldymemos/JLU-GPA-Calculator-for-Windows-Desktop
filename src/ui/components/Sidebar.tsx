@@ -1,5 +1,6 @@
 import {
   BarChartOutlined,
+  BulbOutlined,
   BookOutlined,
   CalculatorOutlined,
   DatabaseOutlined,
@@ -17,7 +18,7 @@ import type { AppRuleSet } from '../../domain/rules/rule-set.types';
 import type { AllResults } from '../state/app-context';
 import { ResultSummary } from './ResultSummary';
 
-export type PanelKind = 'rules' | 'export' | 'compare';
+export type PanelKind = 'rules' | 'export' | 'compare' | 'planning';
 
 interface Props {
   activePanel?: PanelKind;
@@ -43,6 +44,7 @@ const navItems = [
   { key: 'courses', label: '课程', icon: <BookOutlined /> },
   { key: 'rules', label: '计算规则', icon: <SettingOutlined /> },
   { key: 'compare', label: '规则对照', icon: <BarChartOutlined /> },
+  { key: 'planning', label: '目标规划', icon: <BulbOutlined /> },
   { key: 'export', label: '结果导出', icon: <ExportOutlined /> }
 ] as const;
 

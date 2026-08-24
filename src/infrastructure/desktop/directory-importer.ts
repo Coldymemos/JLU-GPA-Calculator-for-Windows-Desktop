@@ -1,6 +1,7 @@
 //! 桌面端目录批量导入的 tauri 客户端封装。
 //! 仅在 Tauri 运行时使用；Web 构建不会导入本模块（入口在 App.tsx 按 isDesktopRuntime 渲染）。
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import type { SniffResult } from '../importers/sniffer';
 import { sniffSpreadsheetBuffer } from '../importers/sniffer';
@@ -12,6 +13,8 @@ export interface CandidateFile {
   size: number;
   modified?: number;
 }
+
+export const WATCH_NEW_FILE_EVENT = 'directory-watch-new-file';
 
 export { sniffSpreadsheetBuffer };
 export type { SniffResult };
@@ -45,4 +48,14 @@ export async function readFileBytes(path: string): Promise<Uint8Array> {
 /** 读取文件字节并做内容嗅探（格式/表头/置信度，不依赖文件名）。 */
 export async function sniffFile(path: string, name: string): Promise<SniffResult> {
   return sniffSpreadsheetBuffer(await readFileBytes(path), name);
+}
+
+/** 启用/停用目录监听（M5.1：新文件自动进队）。 */
+export function setDirectoryWatch(dir: string, enabled: boolean): Promise<void> {
+  return invoke('watch_directory', { dir, enabled });
+}
+
+/** 订阅新文件事件，返回取消订阅函数。 */
+export function onNewFileInDirectory(handler: (path: string) => void): Promise<UnlistenFn> {
+  return listen<string>(WATCH_NEW_FILE_EVENT, (event) => handler(event.payload));
 }

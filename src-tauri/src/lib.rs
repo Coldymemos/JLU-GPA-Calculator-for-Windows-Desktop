@@ -1,6 +1,7 @@
 mod commands;
 mod importer;
 mod storage;
+mod watch;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -22,6 +23,9 @@ pub fn run() {
             commands::scan_directory,
             commands::file_sha256,
             commands::read_file_bytes,
+            commands::fs_write_bytes,
+            commands::backup_prune,
+            commands::watch_directory,
             commands::archives_list,
             commands::archive_active,
             commands::archive_create,

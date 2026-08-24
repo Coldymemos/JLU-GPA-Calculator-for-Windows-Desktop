@@ -1,6 +1,23 @@
-import { DeleteOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
-import { Alert, Button, Descriptions, Divider, Modal, Space, Typography } from 'antd';
-import { useRef } from 'react';
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  FolderOpenOutlined,
+  UploadOutlined
+} from '@ant-design/icons';
+import {
+  Alert,
+  Button,
+  Descriptions,
+  Divider,
+  InputNumber,
+  Modal,
+  Radio,
+  Space,
+  Switch,
+  Typography
+} from 'antd';
+import { useRef, useState } from 'react';
+import { defaultAutoBackupSettings, type AutoBackupSettings } from '../../application/auto-backup';
 
 interface Props {
   open: boolean;
@@ -10,6 +27,10 @@ interface Props {
   onImportData: (file: File) => void;
   onBackupDatabase?: () => void;
   onRestoreDatabase?: () => void;
+  /** M5 定时备份（桌面端） */
+  autoBackup?: AutoBackupSettings;
+  onSaveAutoBackup?: (settings: AutoBackupSettings) => Promise<void>;
+  onPickBackupDirectory?: () => Promise<string | undefined>;
 }
 
 export function AboutDialog({
@@ -19,9 +40,27 @@ export function AboutDialog({
   onExportData,
   onImportData,
   onBackupDatabase,
-  onRestoreDatabase
+  onRestoreDatabase,
+  autoBackup,
+  onSaveAutoBackup,
+  onPickBackupDirectory
 }: Props) {
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState<AutoBackupSettings>(() => ({
+    ...defaultAutoBackupSettings(),
+    ...autoBackup
+  }));
+  const [savingAutoBackup, setSavingAutoBackup] = useState(false);
+
+  const saveAutoBackup = async () => {
+    if (!onSaveAutoBackup) return;
+    setSavingAutoBackup(true);
+    try {
+      await onSaveAutoBackup({ ...draft, keep: Math.max(draft.keep, 1) });
+    } finally {
+      setSavingAutoBackup(false);
+    }
+  };
 
   return (
     <Modal
@@ -90,6 +129,71 @@ export function AboutDialog({
           }}
         />
       </Space>
+      {onSaveAutoBackup && (
+        <>
+          <Divider plain className="about-reset-divider">
+            自动备份
+          </Divider>
+          <Space orientation="vertical" className="full-width">
+            <Space>
+              <Switch
+                checked={draft.enabled}
+                onChange={(enabled) => setDraft({ ...draft, enabled })}
+              />
+              <Typography.Text>启用定时备份（应用运行时检查）</Typography.Text>
+            </Space>
+            <Radio.Group
+              value={draft.frequency}
+              disabled={!draft.enabled}
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  frequency: event.target.value as AutoBackupSettings['frequency']
+                })
+              }
+              options={[
+                { label: '每日', value: 'daily' },
+                { label: '每周', value: 'weekly' }
+              ]}
+            />
+            <Space>
+              <Typography.Text>保留备份份数</Typography.Text>
+              <InputNumber
+                min={1}
+                max={30}
+                disabled={!draft.enabled}
+                value={draft.keep}
+                onChange={(keep) => setDraft({ ...draft, keep: keep ?? 7 })}
+              />
+            </Space>
+            <Space className="full-width">
+              <Button
+                icon={<FolderOpenOutlined />}
+                disabled={!draft.enabled}
+                onClick={() => {
+                  if (!onPickBackupDirectory) return;
+                  void onPickBackupDirectory().then((directory) => {
+                    if (directory) setDraft({ ...draft, directory });
+                  });
+                }}
+              >
+                选择备份目录
+              </Button>
+              <Typography.Text type="secondary" ellipsis>
+                {draft.directory || '未选择'}
+              </Typography.Text>
+            </Space>
+            <Button
+              type="primary"
+              block
+              loading={savingAutoBackup}
+              onClick={() => void saveAutoBackup()}
+            >
+              保存自动备份设置
+            </Button>
+          </Space>
+        </>
+      )}
       <Divider />
       <Button danger block icon={<DeleteOutlined />} onClick={onResetAll}>
         清空当前档案数据

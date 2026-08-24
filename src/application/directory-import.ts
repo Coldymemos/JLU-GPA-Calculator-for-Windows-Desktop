@@ -47,6 +47,16 @@ export interface QueueSummary {
   duplicate: number;
 }
 
+export interface ImportFileSpec {
+  file: QueueFile;
+  sheet?: string;
+  /**
+   * M5 冲突处理：遇到内容重复文件时的策略。
+   * 缺省（skip）→ 自动跳过；'append' → 忽略去重、按追加合并重新导入；'replace' → 忽略去重、按覆盖合并重新导入。
+   */
+  mode?: 'append' | 'replace';
+}
+
 export interface ImportQueueOptions {
   /** 会话内已导入的文件内容指纹（跨批次去重） */
   seenHashes: Set<string>;
@@ -54,7 +64,7 @@ export interface ImportQueueOptions {
   sha256: (bytes: Uint8Array) => Promise<string>;
   sniff: (bytes: Uint8Array, name: string) => SniffResult | Promise<SniffResult>;
   parse: (bytes: Uint8Array, name: string, sheet?: string) => Promise<ParseOutcome>;
-  commit: (courses: Course[]) => Promise<MergeResult>;
+  commit: (courses: Course[], mode: ImportMergeMode) => Promise<MergeResult>;
   onFile: (report: FileImportReport) => void;
 }
 
@@ -92,11 +102,11 @@ export async function parseSpreadsheet(
 const mergeMode: ImportMergeMode = 'append';
 
 /**
- * 串行执行导入队列。每个文件：读字节 → 指纹去重 → 内容嗅探 → 解析 → 合并入库，
+ * 串行执行导入队列。每个文件：读字节 → 指纹去重（可按文件覆盖/追加绕过）→ 内容嗅探 → 解析 → 合并入库，
  * 逐文件产出报告；任一环节失败只影响该文件。
  */
 export async function runFileImportQueue(
-  specs: Array<{ file: QueueFile; sheet?: string }>,
+  specs: ImportFileSpec[],
   options: ImportQueueOptions
 ): Promise<QueueSummary> {
   const summary: QueueSummary = { imported: 0, skipped: 0, failed: 0, duplicate: 0 };
@@ -122,7 +132,8 @@ export async function runFileImportQueue(
 
     try {
       const hash = await options.sha256(bytes);
-      if (options.seenHashes.has(hash)) {
+      // M5 冲突处理：默认对内容重复文件自动跳过；spec.mode 为 append/replace 时绕过去重重新导入
+      if (options.seenHashes.has(hash) && !spec.mode) {
         summary.duplicate += 1;
         options.onFile({
           ...base,
@@ -174,7 +185,7 @@ export async function runFileImportQueue(
         continue;
       }
 
-      const result = await options.commit(parsed.courses);
+      const result = await options.commit(parsed.courses, spec.mode ?? mergeMode);
       // 成功入库后才记录指纹，保证失败/待选工作表的文件可重试
       options.seenHashes.add(hash);
       summary.imported += 1;

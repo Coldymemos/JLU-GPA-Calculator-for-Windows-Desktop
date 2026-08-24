@@ -30,6 +30,24 @@ pub fn read_file_bytes(path: String) -> Result<Vec<u8>, String> {
     importer::read_file_bytes(Path::new(&path))
 }
 
+/// 将字节写入指定路径（M5 导出直写；自动创建父目录）。
+#[tauri::command]
+pub fn fs_write_bytes(path: String, bytes: Vec<u8>) -> Result<(), String> {
+    importer::write_file_bytes(Path::new(&path), &bytes)
+}
+
+/// 清理备份目录，仅保留最近 keep 份自动备份（M5 定时备份）。
+#[tauri::command]
+pub fn backup_prune(dir: String, keep: usize) -> Result<Vec<String>, String> {
+    storage::prune_backups(Path::new(&dir), keep)
+}
+
+/// 启用/停用目录监听（M5.1；新文件经 `directory-watch-new-file` 事件通知前端）。
+#[tauri::command]
+pub fn watch_directory(app: tauri::AppHandle, dir: String, enabled: bool) -> Result<(), String> {
+    crate::watch::configure_watch(&app, &dir, enabled)
+}
+
 #[tauri::command]
 pub fn archives_list(app: tauri::AppHandle) -> Result<Vec<storage::ArchiveSummary>, String> {
     storage::list_archives(&storage::open(&app)?)
