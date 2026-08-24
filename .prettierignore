@@ -2,3 +2,5 @@ dist
 coverage
 playwright-report
 pnpm-lock.yaml
+src-tauri/gen
+src-tauri/target

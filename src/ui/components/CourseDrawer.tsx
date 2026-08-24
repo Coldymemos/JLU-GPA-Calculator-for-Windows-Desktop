@@ -1,4 +1,4 @@
-import { FileAddOutlined } from '@ant-design/icons';
+import { FileAddOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import {
   App,
   Button,
@@ -39,6 +39,8 @@ interface Props {
   recommendationIncluded?: boolean;
   onClose: () => void;
   onImport: () => void;
+  /** 桌面端提供：打开目录批量导入抽屉 */
+  onBatchImport?: () => void;
   onSave: (course: Course) => Promise<void>;
 }
 
@@ -63,6 +65,7 @@ export function CourseDrawer({
   recommendationIncluded,
   onClose,
   onImport,
+  onBatchImport,
   onSave
 }: Props) {
   const app = App.useApp();
@@ -212,9 +215,20 @@ export function CourseDrawer({
                 支持 XLS、XLSX 和 CSV；适配表可恢复课程排除状态
               </Typography.Text>
             </div>
-            <Button aria-label="导入成绩表" icon={<FileAddOutlined />} onClick={openImport}>
-              导入成绩表
-            </Button>
+            <Space>
+              <Button aria-label="导入成绩表" icon={<FileAddOutlined />} onClick={openImport}>
+                导入成绩表
+              </Button>
+              {onBatchImport && (
+                <Button
+                  aria-label="批量导入目录"
+                  icon={<FolderOpenOutlined />}
+                  onClick={onBatchImport}
+                >
+                  批量导入目录
+                </Button>
+              )}
+            </Space>
           </section>
           <Divider plain className="course-entry-divider">
             或手动填写

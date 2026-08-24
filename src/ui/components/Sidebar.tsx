@@ -1,6 +1,8 @@
 import {
+  BarChartOutlined,
   BookOutlined,
   CalculatorOutlined,
+  DatabaseOutlined,
   DownloadOutlined,
   ExportOutlined,
   FilterOutlined,
@@ -15,7 +17,7 @@ import type { AppRuleSet } from '../../domain/rules/rule-set.types';
 import type { AllResults } from '../state/app-context';
 import { ResultSummary } from './ResultSummary';
 
-export type PanelKind = 'rules' | 'export';
+export type PanelKind = 'rules' | 'export' | 'compare';
 
 interface Props {
   activePanel?: PanelKind;
@@ -32,12 +34,15 @@ interface Props {
   onExclusionRules: (kind: ResultKind) => void;
   onExportFilterConfig: () => void;
   onImportFilterConfig: (file: File) => Promise<void>;
+  currentArchiveName?: string;
+  onArchives?: () => void;
   onAbout: () => void;
 }
 
 const navItems = [
   { key: 'courses', label: '课程', icon: <BookOutlined /> },
   { key: 'rules', label: '计算规则', icon: <SettingOutlined /> },
+  { key: 'compare', label: '规则对照', icon: <BarChartOutlined /> },
   { key: 'export', label: '结果导出', icon: <ExportOutlined /> }
 ] as const;
 
@@ -56,6 +61,8 @@ export function Sidebar({
   onExclusionRules,
   onExportFilterConfig,
   onImportFilterConfig,
+  currentArchiveName,
+  onArchives,
   onAbout
 }: Props) {
   const filterConfigInputRef = useRef<HTMLInputElement>(null);
@@ -187,6 +194,21 @@ export function Sidebar({
       </section>
 
       <div className="sidebar-footer">
+        {onArchives && (
+          <Tooltip title={`当前档案：${currentArchiveName ?? '默认档案'}`} placement="right">
+            <button
+              type="button"
+              className="nav-item"
+              aria-label="管理成绩档案"
+              onClick={onArchives}
+            >
+              <span className="nav-icon">
+                <DatabaseOutlined />
+              </span>
+              <span className="nav-label">{currentArchiveName ?? '默认档案'}</span>
+            </button>
+          </Tooltip>
+        )}
         <Tooltip title="关于" placement="right">
           <button type="button" className="nav-item" aria-label="关于" onClick={onAbout}>
             <span className="nav-icon">

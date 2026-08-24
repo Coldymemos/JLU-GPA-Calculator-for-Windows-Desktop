@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { cleanRawValue } from '../../domain/course/cleaning-pipeline';
 import { courseSchema } from '../../domain/course/course.schema';
 import type { Course, CourseSource } from '../../domain/course/course.types';
 import {
@@ -7,35 +8,63 @@ import {
   parseGrade,
   parseSemester
 } from '../../domain/course/course.normalizer';
-import type { ImportField, ImportIssue, ImportPreview } from './import.types';
+import {
+  requiredFields,
+  type ImportField,
+  type ImportIssue,
+  type ImportPreview
+} from './import.types';
 
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_IMPORT_ROWS = 5_000;
 
-const fieldAliases: Record<ImportField, string[]> = {
-  academicTerm: ['学年学期', '学期', '开课学期'],
-  courseCode: ['课程号', '课程代码', '课程编号'],
+export const fieldAliases: Record<ImportField, string[]> = {
+  academicTerm: ['学年学期', '学期', '开课学期', '修读学期'],
+  courseCode: ['课程号', '课程代码', '课程编号', '课号'],
   courseName: ['课程名', '课程名称'],
-  rawGrade: ['总成绩', '成绩', '最终成绩'],
-  sequenceCode: ['课序号'],
-  publicElectiveCategory: ['校公选课类别', '公选课类别'],
+  rawGrade: ['总成绩', '成绩', '最终成绩', '期末成绩', '分数'],
+  sequenceCode: ['课序号', '序号'],
+  publicElectiveCategory: ['校公选课类别', '公选课类别', '公共选修课类别'],
   courseCategory: ['课程类别'],
   courseNature: ['课程性质'],
-  credit: ['学分', '课程学分'],
-  studyMode: ['修读方式'],
+  credit: ['学分', '课程学分', '绩点学分'],
+  studyMode: ['修读方式', '学习方式'],
   isMajor: ['是否主修'],
-  examDate: ['考试日期'],
-  importedGradePoint: ['绩点', '课程绩点'],
-  retakeText: ['重修重考', '重修情况', '重考情况'],
+  examDate: ['考试日期', '考试时间'],
+  importedGradePoint: ['绩点', '课程绩点', '学分绩点'],
+  retakeText: ['重修重考', '重修情况', '重考情况', '重修'],
   examType: ['考试类型'],
-  openingDepartment: ['开课单位', '开课院系'],
-  passed: ['是否及格'],
-  isValid: ['是否有效'],
-  userExcluded: ['是否排除', '排除状态', '手动排除'],
+  openingDepartment: ['开课单位', '开课院系', '开课学院'],
+  passed: ['是否及格', '是否合格'],
+  isValid: ['是否有效', '是否有效成绩'],
+  userExcluded: ['是否排除', '排除状态', '手动排除', '是否计算'],
   specialReason: ['特殊原因']
 };
 
-const requiredFields: ImportField[] = ['courseCode', 'courseName', 'rawGrade', 'credit'];
+/** 简单编辑距离，用于模糊匹配（阈值 ≤1） */
+function editDistance(left: string, right: string): number {
+  const a = left.toLowerCase();
+  const b = right.toLowerCase();
+  if (a === b) return 0;
+  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    let diagonal = previous[0];
+    previous[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const above = previous[j];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      previous[j] = Math.min(previous[j] + 1, previous[j - 1] + 1, diagonal + cost);
+      diagonal = above;
+    }
+  }
+  return previous[b.length];
+}
+
+function fuzzyScore(header: string, alias: string): number {
+  if (header === alias) return 3;
+  if (header.includes(alias) || alias.includes(header)) return 2;
+  return editDistance(header, alias) <= 1 ? 1 : 0;
+}
 
 export class SheetSelectionRequiredError extends Error {
   constructor(public readonly sheetNames: string[]) {
@@ -60,18 +89,41 @@ function mapHeaders(headers: string[]): {
   const issues: ImportIssue[] = [];
 
   for (const [field, aliases] of Object.entries(fieldAliases) as [ImportField, string[]][]) {
-    const matches = normalizedHeaders.filter(({ normalized }) => aliases.includes(normalized));
-    if (matches.length === 1) mapping[field] = matches[0].original;
-    if (matches.length > 1) {
+    const exact = normalizedHeaders.filter(({ normalized }) => aliases.includes(normalized));
+    if (exact.length === 1) {
+      mapping[field] = exact[0].original;
+      continue;
+    }
+    if (exact.length > 1) {
       issues.push({
         sheetName: '',
         field: 'header',
         severity: 'error',
-        originalValue: matches.map(({ original }) => original),
+        originalValue: exact.map(({ original }) => original),
         message: `字段“${field}”匹配到多个表头`,
         suggestion: '请保留一个目标列后重新导入'
       });
+      continue;
     }
+    // 模糊兜底：仅采用「包含关系」的候选（如“课程号（必填）”），避免中文短表头
+    // 编辑距离误报（“课程名”与“课程号”仅差 1）；歧义时不自动映射，留给映射确认界面
+    let best: { original: string; score: number } | undefined;
+    let ambiguous = false;
+    for (const header of normalizedHeaders) {
+      let bestScore = 0;
+      for (const alias of aliases) {
+        bestScore = Math.max(bestScore, fuzzyScore(header.normalized, alias));
+      }
+      if (bestScore >= 2) {
+        if (!best || bestScore > best.score) {
+          best = { original: header.original, score: bestScore };
+          ambiguous = false;
+        } else if (bestScore === best.score) {
+          ambiguous = true;
+        }
+      }
+    }
+    if (best && !ambiguous) mapping[field] = best.original;
   }
   return { mapping, issues };
 }
@@ -91,7 +143,7 @@ function optionalText(value: unknown): string | undefined {
 }
 
 function parseOptionalNumber(value: unknown, fieldLabel: string): number | undefined {
-  const text = normalizeText(value);
+  const text = cleanRawValue(value);
   if (!text) return undefined;
   const parsed = Number(text);
   if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`${fieldLabel}不是有效的非负数`);
@@ -123,8 +175,8 @@ function rowToCourse(
   if (!code) throw new Error('课程号为空');
   if (!name) throw new Error('课程名为空');
 
-  const grade = parseGrade(valueFor(row, mapping, 'rawGrade'));
-  const credit = Number(normalizeText(valueFor(row, mapping, 'credit')));
+  const grade = parseGrade(cleanRawValue(valueFor(row, mapping, 'rawGrade')));
+  const credit = Number(cleanRawValue(valueFor(row, mapping, 'credit')));
   if (!Number.isFinite(credit) || credit <= 0) throw new Error('学分必须为大于 0 的有限数');
 
   const isValid = parseBoolean(valueFor(row, mapping, 'isValid')) ?? true;
@@ -211,7 +263,8 @@ function readWorkbook(data: ArrayBuffer | Uint8Array, fileName: string): XLSX.Wo
 export function parseSpreadsheetBuffer(
   data: ArrayBuffer | Uint8Array,
   fileName: string,
-  selectedSheetName?: string
+  selectedSheetName?: string,
+  headerOverride?: Partial<Record<ImportField, string>>
 ): ImportPreview {
   const workbook = readWorkbook(data, fileName);
   const sheetNames = nonEmptySheetNames(workbook);
@@ -231,7 +284,9 @@ export function parseSpreadsheetBuffer(
 
   const headers = Object.keys(rows[0] ?? {});
   const normalizedHeaders = headers.map(normalizeText);
-  const { mapping, issues: headerIssues } = mapHeaders(headers);
+  const { mapping: autoMapping, issues: headerIssues } = mapHeaders(headers);
+  // 手动映射覆盖自动识别（映射确认界面使用）；仅覆盖用户显式指定的字段
+  const mapping = headerOverride ? { ...autoMapping, ...headerOverride } : autoMapping;
   const source = ['学年学期', '课程号', '课程名', '总成绩', '学分'].every((header) =>
     normalizedHeaders.includes(header)
   )
@@ -286,6 +341,7 @@ export function parseSpreadsheetBuffer(
     selectedSheetName: sheetName,
     source,
     headerMapping: mapping,
+    availableColumns: headers,
     totalRows: rows.length,
     courses,
     issues,
@@ -303,12 +359,18 @@ export function parseSpreadsheetBuffer(
 
 export async function parseSpreadsheetFile(
   file: File,
-  selectedSheetName?: string
+  selectedSheetName?: string,
+  headerOverride?: Partial<Record<ImportField, string>>
 ): Promise<ImportPreview> {
   if (file.size > MAX_FILE_SIZE_BYTES) throw new Error('文件超过 10 MB 限制');
   const extension = file.name.split('.').pop()?.toLowerCase();
   if (!extension || !['xls', 'xlsx', 'csv'].includes(extension)) {
     throw new Error('仅支持 .xls、.xlsx 和 .csv 文件');
   }
-  return parseSpreadsheetBuffer(await file.arrayBuffer(), file.name, selectedSheetName);
+  return parseSpreadsheetBuffer(
+    await file.arrayBuffer(),
+    file.name,
+    selectedSheetName,
+    headerOverride
+  );
 }

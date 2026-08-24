@@ -1,4 +1,15 @@
-import { Alert, Button, Divider, Drawer, InputNumber, Radio, Space, Table, Typography } from 'antd';
+import {
+  Alert,
+  Button,
+  Divider,
+  Drawer,
+  Input,
+  InputNumber,
+  Radio,
+  Space,
+  Table,
+  Typography
+} from 'antd';
 import { useState } from 'react';
 import type { LevelGrade } from '../../domain/course/course.types';
 import type { AppRuleSet, GradePointBand } from '../../domain/rules/rule-set.types';
@@ -8,6 +19,8 @@ interface Props {
   rules: AppRuleSet;
   onCancel: () => void;
   onSave: (rules: AppRuleSet) => Promise<void>;
+  /** 另存为新规则集（多规则集并行模拟用） */
+  onSaveAs: (rules: AppRuleSet) => Promise<void>;
 }
 
 const levels: LevelGrade[] = ['优秀', '良好', '中等', '及格', '不及格'];
@@ -33,10 +46,12 @@ function validateBands(bands: GradePointBand[]): GradePointBand[] {
   return sorted;
 }
 
-export function RulesDrawer({ open, rules, onCancel, onSave }: Props) {
+export function RulesDrawer({ open, rules, onCancel, onSave, onSaveAs }: Props) {
   const [draft, setDraft] = useState<AppRuleSet>(() => structuredClone(rules));
+  const [name, setName] = useState(rules.name);
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const [savingAs, setSavingAs] = useState(false);
 
   const updateBand = (index: number, field: keyof GradePointBand, value: number | null) => {
     const bands = draft.gradePoint.bands.map((band, bandIndex) =>
@@ -45,17 +60,23 @@ export function RulesDrawer({ open, rules, onCancel, onSave }: Props) {
     setDraft({ ...draft, gradePoint: { ...draft.gradePoint, bands } });
   };
 
+  const buildNext = (): AppRuleSet => {
+    const bands = validateBands(draft.gradePoint.bands);
+    return {
+      ...draft,
+      name: name.trim() || draft.name,
+      gradePoint: { ...draft.gradePoint, bands }
+    };
+  };
+
   const save = async () => {
     setSaving(true);
     setError(undefined);
     try {
-      const bands = validateBands(draft.gradePoint.bands);
       const next: AppRuleSet = {
-        ...draft,
+        ...buildNext(),
         id: 'user-custom-rule-set',
-        name: '用户自定义规则',
-        version: `custom-${new Date().toISOString().slice(0, 10)}`,
-        gradePoint: { ...draft.gradePoint, bands }
+        version: `custom-${new Date().toISOString().slice(0, 10)}`
       };
       await onSave(next);
       onCancel();
@@ -63,6 +84,24 @@ export function RulesDrawer({ open, rules, onCancel, onSave }: Props) {
       setError(reason instanceof Error ? reason.message : '规则保存失败');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveAs = async () => {
+    setSavingAs(true);
+    setError(undefined);
+    try {
+      const next: AppRuleSet = {
+        ...buildNext(),
+        id: `custom-${Date.now()}`,
+        version: `custom-${new Date().toISOString().slice(0, 10)}`
+      };
+      await onSaveAs(next);
+      onCancel();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '新规则集保存失败');
+    } finally {
+      setSavingAs(false);
     }
   };
 
@@ -77,6 +116,9 @@ export function RulesDrawer({ open, rules, onCancel, onSave }: Props) {
       extra={
         <Space>
           <Button onClick={onCancel}>取消</Button>
+          <Button type="default" loading={savingAs} onClick={() => void saveAs()}>
+            另存为新规则集
+          </Button>
           <Button type="primary" loading={saving} onClick={() => void save()}>
             保存规则
           </Button>
@@ -84,6 +126,16 @@ export function RulesDrawer({ open, rules, onCancel, onSave }: Props) {
       }
     >
       <Space orientation="vertical" size="middle" className="full-width">
+        <div>
+          <Typography.Text strong>规则集名称</Typography.Text>
+          <Input
+            value={name}
+            maxLength={40}
+            placeholder="例如：2024 级工科保研规则"
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
+        <Divider />
         <div>
           <Typography.Title level={4}>绩点取值方式</Typography.Title>
           <Radio.Group

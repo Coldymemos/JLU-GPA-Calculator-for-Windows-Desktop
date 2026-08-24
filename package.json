@@ -4,11 +4,20 @@
   "version": "1.0.1",
   "packageManager": "pnpm@11.19.0",
   "type": "module",
-  "description": "Local-first GPA and average score calculator for Jilin University undergraduates.",
+  "description": "Windows desktop GPA and average score calculator for Jilin University undergraduates.",
+  "author": "Coldymemos",
+  "contributors": ["DailyPotato"],
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop.git"
+  },
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "build": "pnpm typecheck && vite build",
+    "build:desktop": "pnpm typecheck && vite build",
+    "tauri": "tauri",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -20,6 +29,8 @@
   },
   "dependencies": {
     "@ant-design/icons": "6.1.0",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.2",
     "antd": "^6.6.1",
     "dexie": "^4.4.5",
     "html-to-image": "^1.11.13",
@@ -33,6 +44,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
+    "@tauri-apps/cli": "^2.11.4",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^26.2.0",

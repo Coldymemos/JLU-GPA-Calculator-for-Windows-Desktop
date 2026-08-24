@@ -1,13 +1,14 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { Course } from '../../domain/course/course.types';
 import type { AppRuleSet } from '../../domain/rules/rule-set.types';
+import type { PersistenceData, PersistencePort } from './persistence-port';
 
 export interface SettingRecord {
   key: string;
   value: unknown;
 }
 
-export class JluGpaDatabase extends Dexie {
+export class JluGpaDatabase extends Dexie implements PersistencePort {
   courses!: EntityTable<Course, 'id'>;
   ruleSets!: EntityTable<AppRuleSet, 'id'>;
   settings!: EntityTable<SettingRecord, 'key'>;
@@ -69,6 +70,10 @@ export class JluGpaDatabase extends Dexie {
     return this.ruleSets.get(id);
   }
 
+  async listRuleSets(): Promise<AppRuleSet[]> {
+    return this.ruleSets.toArray();
+  }
+
   async saveRuleSet(ruleSet: AppRuleSet): Promise<void> {
     await this.ruleSets.put(ruleSet);
   }
@@ -80,6 +85,22 @@ export class JluGpaDatabase extends Dexie {
   async saveSetting(key: string, value: unknown): Promise<void> {
     await this.settings.put({ key, value });
   }
-}
 
-export const database = new JluGpaDatabase();
+  async exportData(): Promise<PersistenceData> {
+    const [courses, ruleSets, settings] = await Promise.all([
+      this.courses.toArray(),
+      this.ruleSets.toArray(),
+      this.settings.toArray()
+    ]);
+    return { courses, ruleSets, settings };
+  }
+
+  async importData(data: PersistenceData): Promise<void> {
+    await this.transaction('rw', this.courses, this.ruleSets, this.settings, async () => {
+      await Promise.all([this.courses.clear(), this.ruleSets.clear(), this.settings.clear()]);
+      await this.courses.bulkAdd(data.courses);
+      await this.ruleSets.bulkAdd(data.ruleSets);
+      await this.settings.bulkAdd(data.settings);
+    });
+  }
+}

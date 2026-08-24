@@ -328,6 +328,19 @@ textarea {
   border-top: 1px solid #eceff2;
 }
 
+.archive-create-row {
+  margin: 16px 0 8px;
+}
+
+.archive-list .ant-list-item-meta-title {
+  min-height: 32px;
+  margin-bottom: 2px !important;
+}
+
+.archive-list .ant-list-item-action {
+  margin-inline-start: 12px;
+}
+
 .app-main {
   flex: 1 1 auto;
   min-width: 0;
@@ -540,6 +553,27 @@ textarea {
   margin: 14px 0 18px;
   color: #8a929d;
   font-size: 12px;
+}
+
+.header-mapping-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed #dfe3e8;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+
+.header-mapping-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compare-diff {
+  color: #d46b08;
+  font-weight: 600;
 }
 
 .exclusion-drawer-intro {

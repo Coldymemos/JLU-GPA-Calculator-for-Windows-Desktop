@@ -14,10 +14,13 @@ import type { UploadProps } from 'antd';
 import { useMemo, useState } from 'react';
 import { mergeCourses } from '../../application/merge-courses';
 import type { Course } from '../../domain/course/course.types';
-import type {
-  ImportMergeMode,
-  ImportPreview,
-  MergeResult
+import {
+  fieldLabels,
+  requiredFields,
+  type ImportField,
+  type ImportMergeMode,
+  type ImportPreview,
+  type MergeResult
 } from '../../infrastructure/importers/import.types';
 
 interface Props {
@@ -35,13 +38,19 @@ export function ImportDrawer({ open, existingCourses, onCancel, onCommit }: Prop
   const [mode, setMode] = useState<ImportMergeMode>('append');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  // 用户手动指定的列映射覆盖（自动识别优先被此覆盖；文件变化时重置）
+  const [mappingOverride, setMappingOverride] = useState<Partial<Record<ImportField, string>>>({});
 
-  const parse = async (nextFile: File, sheet?: string) => {
+  const parse = async (
+    nextFile: File,
+    sheet?: string,
+    override?: Partial<Record<ImportField, string>>
+  ) => {
     setBusy(true);
     setError(undefined);
     try {
       const importer = await import('../../infrastructure/importers/sheetjs-importer');
-      const nextPreview = await importer.parseSpreadsheetFile(nextFile, sheet);
+      const nextPreview = await importer.parseSpreadsheetFile(nextFile, sheet, override);
       setPreview(nextPreview);
       setSheetNames(nextPreview.sheetNames);
       setSelectedSheet(nextPreview.selectedSheetName);
@@ -64,8 +73,14 @@ export function ImportDrawer({ open, existingCourses, onCancel, onCommit }: Prop
     }
   };
 
+  // 预览变化时无需同步：Select 取值优先手动覆盖，其次自动识别结果
+  const needsMapping = Boolean(
+    preview && requiredFields.some((field) => !preview.headerMapping[field])
+  );
+
   const beforeUpload: UploadProps['beforeUpload'] = (nextFile) => {
     setFile(nextFile);
+    setMappingOverride({});
     void parse(nextFile);
     return Upload.LIST_IGNORE;
   };
@@ -143,6 +158,42 @@ export function ImportDrawer({ open, existingCourses, onCancel, onCommit }: Prop
         {error && <Alert type="error" showIcon message={error} />}
         {preview && (
           <>
+            {needsMapping && (
+              <div className="header-mapping-editor">
+                <Typography.Text strong>列映射确认</Typography.Text>
+                <Typography.Text type="secondary">
+                  未能自动识别全部必要字段，请为以下字段指定列（选择后立即重新预览）：
+                </Typography.Text>
+                <Space wrap>
+                  {requiredFields.map((field) => (
+                    <label key={field} className="header-mapping-field">
+                      <span>{fieldLabels[field]}</span>
+                      <Select
+                        style={{ minWidth: 170 }}
+                        placeholder="选择列"
+                        value={
+                          mappingOverride[field] !== undefined
+                            ? mappingOverride[field]
+                            : preview.headerMapping[field]
+                        }
+                        options={[
+                          ...preview.availableColumns.map((column) => ({
+                            label: column,
+                            value: column
+                          })),
+                          { label: '（不映射）', value: '' }
+                        ]}
+                        onChange={(column) => {
+                          const next = { ...mappingOverride, [field]: column ?? '' };
+                          setMappingOverride(next);
+                          if (file) void parse(file, selectedSheet, next);
+                        }}
+                      />
+                    </label>
+                  ))}
+                </Space>
+              </div>
+            )}
             {preview.hasExclusionColumn && (
               <Alert
                 type="info"

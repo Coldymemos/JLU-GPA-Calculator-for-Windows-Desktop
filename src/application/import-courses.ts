@@ -1,10 +1,10 @@
 import type { Course } from '../domain/course/course.types';
-import type { JluGpaDatabase } from '../infrastructure/persistence/dexie-db';
+import type { PersistencePort } from '../infrastructure/persistence';
 import type { ImportMergeMode, MergeResult } from '../infrastructure/importers/import.types';
 import { mergeCourses } from './merge-courses';
 
 export async function commitCourseImport(
-  database: JluGpaDatabase,
+  database: PersistencePort,
   existing: Course[],
   incoming: Course[],
   mode: ImportMergeMode
