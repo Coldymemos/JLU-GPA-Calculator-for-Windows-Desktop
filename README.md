@@ -1,92 +1,110 @@
-# JLU GPA Calculator for Windows Desktop
+<p align="center">
+  <img src="public/app-icon.svg" width="96" alt="JLU GPA Desktop 图标" />
+</p>
 
-面向吉林大学本科生的本地优先绩点核算桌面应用，可计算保研 GPA、加权平均分和算术平均分。
+<h1 align="center">JLU GPA Calculator for Windows Desktop</h1>
 
-> 作者：Coldymemos · 共同作者：DailyPotato
-> 当前版本：v1.0.1
-> 非吉林大学官方系统，计算结果仅供个人核对，请以适用于本人的学院、专业和年份文件为准。
+<p align="center">
+  面向吉林大学本科生的本地绩点与成绩规划工具
+</p>
 
-## 当前状态
+<p align="center">
+  <a href="https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop/actions/workflows/desktop.yml"><img src="https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop/actions/workflows/desktop.yml/badge.svg" alt="Windows 构建状态" /></a>
+  <img src="https://img.shields.io/badge/version-1.0.1-8f2c3e" alt="当前版本 1.0.1" />
+  <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4?logo=windows" alt="支持 Windows 10 和 Windows 11" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-f39c12" alt="PolyForm Noncommercial License" /></a>
+</p>
 
-桌面端以 Web 版 v1.0.1 为冻结基线独立演进。Tauri 2 桌面壳、Windows 构建、MSI/NSIS 打包和 CI 已完成；M2 已完成 SQLite 主存储、多档案管理、Web/桌面 JSON 迁移以及带 SHA-256 校验的数据库备份恢复；M3 已完成目录批量导入：目录选择与路径记忆、递归扫描、内容嗅探（不依赖文件名）、导入队列与逐文件报告、文件内容指纹去重、低置信度人工确认；M4 已完成解析增强：清洗管道（去括号批注、单位后缀、空白合并）、表头同义词与包含式自动映射、列映射确认界面、多规则集并行对照；M5 已完成导出直写路径（记忆上次目录）、定时备份（每日/每周、保留 N 份）、导入冲突处理（追加/覆盖/跳过）和目录监听；M6.1 已完成未来课程目标规划与敏感度分析。
+JLU GPA Desktop 可以在本机管理课程成绩，计算保研 GPA、加权平均分和算术平均分，并模拟未来还需要修读多少课程、取得什么成绩才能达到目标。所有课程数据和计算过程均保存在本机，不需要上传成绩单。
 
-桌面运行时将课程、规则和设置按档案隔离保存在 `%APPDATA%\com.coldymemos.jlugpa.desktop\jlu-gpa-desktop.sqlite3`；单独运行 Web 构建时仍使用 IndexedDB。JSON 文件迁移当前档案，SQLite 备份/恢复整个数据库及全部档案。M6 当前只模拟未来课程，不修改已修成绩；PDF 成绩单解析和 OCR 暂不实现。
+> [!IMPORTANT]
+> 本项目不是吉林大学官方软件。不同学院、专业和年级适用的计算规则可能不同，请先核对相关文件并按实际情况调整规则。计算结果仅供个人参考。
 
-详细范围和施工顺序见：
+## 主要功能
 
-- [本地化功能规划](本地化功能规划.md)
-- [施工细节文档](施工细节文档.md)
+| 功能           | 说明                                                                             |
+| -------------- | -------------------------------------------------------------------------------- |
+| 三类成绩计算   | 计算保研 GPA、加权平均分和算术平均分，并展示纳入与排除课程                       |
+| 未来课程规划   | 输入目标值，反推所需课程数、课程学分和模拟成绩，查看不同未来成绩下的敏感度       |
+| 成绩表导入     | 导入 `.xls`、`.xlsx`、`.csv`，支持多工作表、导入预览、表头映射和逐行问题报告     |
+| 目录批量导入   | 扫描整个目录，识别成绩表、处理重复文件，并提供逐文件导入报告                     |
+| 自定义计算规则 | 分别设置三类结果的课程类型、关键词和课程号排除规则，保存多套规则并进行结果对照   |
+| 多档案管理     | 为不同阶段或不同计算方案建立独立成绩档案，课程、规则和设置互不影响               |
+| 本地备份       | 使用 SQLite 保存数据，支持手动备份、完整性校验、恢复前副本以及每日或每周自动备份 |
+| 结果导出       | 将结果导出为 PNG、PDF 或 Excel，也可以直接写入指定目录                           |
 
-## 已有功能
+同一课程号存在多条记录时，默认保留有效成绩最高的一条参与计算；同名但课程号不同的课程不会自动合并。
 
-- 导入 `.xls`、`.xlsx`、`.csv`，支持多工作表选择、导入预览和逐行问题报告；
-- 桌面端支持**目录批量导入**：递归扫描目录、按内容识别格式与表头（不依赖文件名）、内容重复文件自动去重、逐文件成败报告；
-- 清洗管道自动处理 `90(重修)`、`90.0分`、全角字符、多余空白等脏数据；表头同义词自动匹配，无法识别的字段可手动指定列映射；
-- **多规则集并行对照**：保存多套规则集，同一份课程数据按不同规则同时计算并排展示差异；
-- 桌面端**导出直写路径**：选择导出目录并记忆，PNG/PDF/xlsx 直接写入磁盘；
-- 桌面端**定时备份**：每日/每周自动备份 SQLite 数据库，保留最近 N 份；
-- **未来课程目标规划**：输入目标绩点，反推达到目标所需的未来课程学分、课程数和模拟成绩，并提供未来平均成绩敏感度表；模拟数据不会保存到课程库；
-- 计算保研 GPA、加权平均分和算术平均分；
-- 同课程号保留最高有效成绩，同名不同号不合并；
-- 支持百分制、五级制和导入绩点/映射绩点切换；
-- 手动新增、编辑、删除和排除课程；
-- 为三项结果分别设置课程类型、关键词和课程号排除规则；
-- 导出 PNG、PDF、课程明细和适配 Excel 表格；
-- 完全离线运行，课程与设置保存在本机。
+## 下载与安装
 
-## 安装
+前往 [Releases](https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop/releases) 获取 Windows x64 安装包：
 
-在 GitHub Releases 下载 Windows 安装包：
+- `*-setup.exe`：适合大多数用户的安装程序；
+- `*.msi`：适合使用 Windows Installer 部署的用户。
 
-- `*-setup.exe`：NSIS 安装程序；
-- `*.msi`：Windows Installer 安装包。
+如果 Releases 页面暂时没有可用安装包，可以按照下方的[从源码运行](#从源码运行)说明自行构建。
 
-当前发布目标为 Windows x64，依赖系统 WebView2。Windows 10/11 通常已预装 WebView2 Runtime。
+应用支持 Windows 10/11 x64，并依赖 Microsoft Edge WebView2 Runtime。多数较新的 Windows 系统已经预装 WebView2。当前安装包未进行商业代码签名，因此 Windows 首次运行时可能显示安全提示，请只从本仓库的 Releases 页面下载安装包。
 
-## 本地开发
+## 快速上手
 
-需要 Node.js 22、pnpm 11、Rust stable、Visual Studio 2022 C++ 构建工具和 WebView2。
+1. 打开应用，在“课程”页面手动添加课程，或导入教务系统导出的 `.xls`、`.xlsx`、`.csv` 成绩表。
+2. 检查导入预览、字段映射和异常行，确认后保存课程。
+3. 在“计算规则”和各结果的“排除规则”中核对当前计算口径。
+4. 点击“开始计算”，查看保研 GPA、加权平均分和算术平均分。
+5. 打开“目标规划”，输入目标值和每门模拟课学分，查看未来课程与成绩需求。
+6. 需要留存结果时，在“结果导出”中选择 PNG、PDF 或 Excel。
+
+规划功能只创建临时模拟课程，不会修改或保存到当前成绩档案。当前自动反推按每门模拟课程相同学分、成绩 60–100 分、最多 40 门课程进行搜索；生成方案后可以继续手动调整每门课的学分和成绩。
+
+## 数据与隐私
+
+- 应用运行时不需要登录账号，也不会把课程和成绩上传到服务器；
+- 桌面数据保存在 `%APPDATA%\com.coldymemos.jlugpa.desktop\jlu-gpa-desktop.sqlite3`；
+- 手动备份和自动备份均由用户选择保存位置；
+- 恢复数据库前会检查 SQLite 完整性和 SHA-256 校验和，并保留恢复前副本；
+- 提交 Issue 或错误报告时，请勿上传包含真实姓名、学号或成绩的文件和截图。
+
+## 当前范围
+
+当前版本支持 Excel/CSV 成绩表和手动录入，暂不支持把 PDF 成绩单或扫描图片作为导入源，也不提供 OCR。这里的限制只针对成绩单导入，计算结果仍然可以正常导出为 PDF。
+
+## 从源码运行
+
+开发环境需要：
+
+- Node.js 22；
+- pnpm 11；
+- Rust stable；
+- Visual Studio 2022 C++ 构建工具；
+- Microsoft Edge WebView2。
 
 ```powershell
+git clone https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop.git
+cd JLU-GPA-Calculator-for-Windows-Desktop
 pnpm install --frozen-lockfile
 pnpm tauri dev
 ```
 
 常用命令：
 
-| 命令                      | 说明                                          |
-| ------------------------- | --------------------------------------------- |
-| `pnpm tauri dev`          | 启动桌面开发环境                              |
-| `pnpm tauri build`        | 生成 Windows 应用、MSI 和 NSIS 安装包         |
-| `pnpm check`              | lint、格式检查、测试、类型检查和 Web 基线构建 |
-| `pnpm test`               | 运行 Vitest 单元与组件测试                    |
-| `pnpm test:e2e`           | 运行 Playwright 端到端测试                    |
-| `pnpm dev` / `pnpm build` | 单独启动或构建 Web 基线，用于验证双端兼容     |
+| 命令               | 说明                                          |
+| ------------------ | --------------------------------------------- |
+| `pnpm tauri dev`   | 启动桌面开发环境                              |
+| `pnpm check`       | 运行 lint、格式、测试、类型检查和前端生产构建 |
+| `pnpm tauri build` | 生成 Windows 应用、MSI 和 NSIS 安装包         |
 
-## 项目结构
+项目使用 React、TypeScript、Tauri 2 和 SQLite。更详细的设计背景、实现范围和施工记录保留在[本地化功能规划](本地化功能规划.md)与[施工细节文档](施工细节文档.md)中。
 
-```text
-src/
-├── domain/           # 纯计算引擎、课程模型与规则
-├── application/      # 导入、合并等应用用例
-├── infrastructure/   # 导入导出和持久化适配器
-└── ui/               # React 界面与状态
-src-tauri/
-├── src/              # Rust 桌面后端
-├── capabilities/     # Tauri 最小权限配置
-└── tauri.conf.json   # 窗口、构建与安装包配置
-```
+## 反馈与贡献
 
-`src/domain/` 是与 Web v1.0.1 对齐的计算基线。修改计算口径时必须同时补充测试；桌面能力主要在 `src/infrastructure/`、`src/ui/` 和 `src-tauri/` 演进。
+如果你发现计算口径、导入格式或界面行为存在问题，可以提交 [Issue](https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop/issues)。提交前请移除所有真实个人信息和成绩数据。
 
-## 构建与发布
-
-GitHub Actions 在 Windows runner 上执行 `pnpm check` 并生成 MSI/NSIS。推送 `v*` 标签时会创建包含安装包的草稿 Release。
-
-禁止向仓库提交真实成绩文件、导出结果、数据库或本地验收数据。
+- 作者：Coldymemos
+- 共同作者：DailyPotato
 
 ## License
 
 本项目源码按 [PolyForm Noncommercial License 1.0.0](LICENSE) 提供。允许在非商业目的下使用、研究、修改和分享；任何商业用途均需事先取得作者授权。
 
-PolyForm Noncommercial 不是 OSI 认可的开源许可证，因此本项目对外定位为“源码可用（source-available）”软件，而非 OSI 定义下的开源软件。
+本项目属于源码可用（source-available）软件，不属于 OSI 定义下的开源软件。
