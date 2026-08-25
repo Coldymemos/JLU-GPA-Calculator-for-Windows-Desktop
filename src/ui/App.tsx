@@ -18,6 +18,12 @@ import {
   writeExportFile
 } from '../infrastructure/desktop/direct-export';
 import {
+  onAcademicImportFile,
+  openAcademicImportWindow,
+  readAcademicImportFile,
+  removeAcademicImportFile
+} from '../infrastructure/desktop/academic-import';
+import {
   AUTO_BACKUP_LAST_RUN_KEY,
   AUTO_BACKUP_SETTING_KEY,
   shouldRunAutoBackup,
@@ -94,6 +100,7 @@ function Workbench() {
   } = useAppState();
   const [activePanel, setActivePanel] = useState<PanelKind>();
   const [importOpen, setImportOpen] = useState(false);
+  const [academicImportFile, setAcademicImportFile] = useState<File>();
   const [batchImportOpen, setBatchImportOpen] = useState(false);
   const [exclusionKind, setExclusionKind] = useState<ResultKind>();
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -107,6 +114,49 @@ function Workbench() {
   const [generatedAt, setGeneratedAt] = useState(() => new Date());
   const [workspaceVersion, setWorkspaceVersion] = useState(0);
   const exportRef = useRef<HTMLDivElement>(null);
+
+  // 桌面端：教务 WebView 捕获官方导出后，交给现有成绩表预览流程。
+  useEffect(() => {
+    if (!isDesktopRuntime) return;
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    void onAcademicImportFile((payload) => {
+      void readAcademicImportFile(payload.path)
+        .then((bytes) => {
+          if (!active) return;
+          const extension = payload.name.split('.').pop()?.toLowerCase();
+          const mimeType =
+            extension === 'csv'
+              ? 'text/csv'
+              : extension === 'xls'
+                ? 'application/vnd.ms-excel'
+                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          const fileBuffer = new ArrayBuffer(bytes.byteLength);
+          new Uint8Array(fileBuffer).set(bytes);
+          setAcademicImportFile(new File([fileBuffer], payload.name, { type: mimeType }));
+          setEditorOpen(false);
+          setEditingCourse(undefined);
+          setBatchImportOpen(false);
+          setImportOpen(true);
+          app.message.success('已获取教务导出成绩表，请确认导入预览');
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            app.message.error(error instanceof Error ? error.message : '读取教务导出文件失败');
+          }
+        })
+        .finally(() => {
+          void removeAcademicImportFile(payload.path).catch(() => undefined);
+        });
+    }).then((dispose) => {
+      if (active) unlisten = dispose;
+      else dispose();
+    });
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, [app.message]);
 
   useEffect(() => {
     if (persistenceError) app.message.error(persistenceError);
@@ -383,7 +433,11 @@ function Workbench() {
         <ImportDrawer
           open
           existingCourses={courses}
-          onCancel={() => setImportOpen(false)}
+          initialFile={academicImportFile}
+          onCancel={() => {
+            setImportOpen(false);
+            setAcademicImportFile(undefined);
+          }}
           onCommit={async (incoming, mode) => {
             const merged = await importCourses(incoming, mode);
             app.message.success(
@@ -493,6 +547,7 @@ function Workbench() {
         onImport={() => {
           setEditorOpen(false);
           setEditingCourse(undefined);
+          setAcademicImportFile(undefined);
           setImportOpen(true);
           setBatchImportOpen(false);
         }}
@@ -502,6 +557,21 @@ function Workbench() {
                 setEditorOpen(false);
                 setEditingCourse(undefined);
                 setBatchImportOpen(true);
+              }
+            : undefined
+        }
+        onAcademicImport={
+          isDesktopRuntime
+            ? () => {
+                setEditorOpen(false);
+                setEditingCourse(undefined);
+                setImportOpen(false);
+                setAcademicImportFile(undefined);
+                void openAcademicImportWindow().catch((error: unknown) => {
+                  app.message.error(
+                    error instanceof Error ? error.message : '无法打开教务系统窗口'
+                  );
+                });
               }
             : undefined
         }

@@ -1,3 +1,4 @@
+mod academic_import;
 mod commands;
 mod importer;
 mod storage;
@@ -20,6 +21,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            academic_import::open_academic_import_window,
+            academic_import::remove_academic_import_file,
             commands::scan_directory,
             commands::file_sha256,
             commands::read_file_bytes,

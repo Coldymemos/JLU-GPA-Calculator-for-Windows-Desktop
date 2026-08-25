@@ -516,14 +516,20 @@ textarea {
 }
 
 .course-import-entry {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   padding: 14px;
   border: 1px solid #ead7db;
   border-radius: 6px;
   background: #fbf6f7;
+}
+
+.course-import-entry-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
 }
 
 .course-import-entry-icon {
@@ -547,6 +553,31 @@ textarea {
 
 .course-import-entry-copy .ant-typography-secondary {
   font-size: 12px;
+}
+
+.course-import-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 2px;
+  border-top: 1px solid #ead7db;
+}
+
+.course-import-action {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.course-import-action .ant-typography-secondary {
+  padding-inline: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.course-import-action-wide {
+  grid-column: 1 / -1;
 }
 
 .course-entry-divider.ant-divider {
@@ -1079,11 +1110,18 @@ textarea {
   }
 
   .course-import-entry {
-    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
   }
 
-  .course-import-entry .ant-btn {
-    grid-column: 1 / -1;
+  .course-import-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .course-import-action-wide {
+    grid-column: auto;
+  }
+
+  .course-import-action .ant-btn {
     width: 100%;
   }
 

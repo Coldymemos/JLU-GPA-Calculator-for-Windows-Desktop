@@ -44,7 +44,7 @@ describe('CourseDrawer', () => {
     );
 
     expect(screen.getByText('从成绩表批量添加')).toBeInTheDocument();
-    expect(screen.getByText(/支持 XLS、XLSX 和 CSV/)).toBeInTheDocument();
+    expect(screen.getByText('已有 XLS、XLSX 或 CSV 文件')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '导入成绩表' }));
 
     expect(onImport).toHaveBeenCalledOnce();
@@ -66,5 +66,25 @@ describe('CourseDrawer', () => {
 
     expect(screen.queryByText('从成绩表批量添加')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '导入成绩表' })).not.toBeInTheDocument();
+  });
+
+  it('explains the export step for the academic-system import', () => {
+    const onAcademicImport = vi.fn();
+
+    render(
+      <App>
+        <CourseDrawer
+          open
+          onClose={vi.fn()}
+          onImport={vi.fn()}
+          onAcademicImport={onAcademicImport}
+          onSave={vi.fn().mockResolvedValue(undefined)}
+        />
+      </App>
+    );
+
+    expect(screen.getByText('登录后在成绩查询页面点击“导出”按钮下载')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '从教务系统导入' }));
+    expect(onAcademicImport).toHaveBeenCalledOnce();
   });
 });

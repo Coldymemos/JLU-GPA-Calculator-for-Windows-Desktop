@@ -1689,7 +1689,7 @@ dependencies = [
 
 [[package]]
 name = "jlu-gpa-calculator-desktop"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "log",
  "notify",
@@ -1701,6 +1701,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-log",
+ "url",
 ]
 
 [[package]]

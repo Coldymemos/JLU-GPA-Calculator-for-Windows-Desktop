@@ -83,7 +83,7 @@ export function AboutDialog({
         面向吉林大学本科生的本地优先绩点核算桌面应用，可计算保研 GPA、加权平均分和算术平均分。
       </Typography.Paragraph>
       <Descriptions column={{ xs: 1, sm: 2 }} size="small" bordered>
-        <Descriptions.Item label="版本">正式版 v1.0.2</Descriptions.Item>
+        <Descriptions.Item label="版本">正式版 v1.0.3</Descriptions.Item>
         <Descriptions.Item label="作者">Coldymemos · DailyPotato（共同作者）</Descriptions.Item>
         <Descriptions.Item label="项目地址" span={{ xs: 1, sm: 2 }}>
           <Typography.Text

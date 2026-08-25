@@ -1,4 +1,4 @@
-import { FileAddOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import { FileAddOutlined, FolderOpenOutlined, GlobalOutlined } from '@ant-design/icons';
 import {
   App,
   Button,
@@ -41,6 +41,8 @@ interface Props {
   onImport: () => void;
   /** 桌面端提供：打开目录批量导入抽屉 */
   onBatchImport?: () => void;
+  /** 桌面端提供：在教务系统窗口中登录并导出成绩表 */
+  onAcademicImport?: () => void;
   onSave: (course: Course) => Promise<void>;
 }
 
@@ -66,6 +68,7 @@ export function CourseDrawer({
   onClose,
   onImport,
   onBatchImport,
+  onAcademicImport,
   onSave
 }: Props) {
   const app = App.useApp();
@@ -204,31 +207,63 @@ export function CourseDrawer({
       {!course && (
         <>
           <section className="course-import-entry" aria-labelledby="course-import-entry-title">
-            <span className="course-import-entry-icon" aria-hidden="true">
-              <FileAddOutlined />
-            </span>
-            <div className="course-import-entry-copy">
-              <Typography.Text id="course-import-entry-title" strong>
-                从成绩表批量添加
-              </Typography.Text>
-              <Typography.Text type="secondary">
-                支持 XLS、XLSX 和 CSV；适配表可恢复课程排除状态
-              </Typography.Text>
+            <div className="course-import-entry-heading">
+              <span className="course-import-entry-icon" aria-hidden="true">
+                <FileAddOutlined />
+              </span>
+              <div className="course-import-entry-copy">
+                <Typography.Text id="course-import-entry-title" strong>
+                  从成绩表批量添加
+                </Typography.Text>
+                <Typography.Text type="secondary">
+                  选择一种来源，先预览再保存，不会覆盖现有课程
+                </Typography.Text>
+              </div>
             </div>
-            <Space>
-              <Button aria-label="导入成绩表" icon={<FileAddOutlined />} onClick={openImport}>
-                导入成绩表
-              </Button>
-              {onBatchImport && (
+            <div className="course-import-actions">
+              <div className="course-import-action">
                 <Button
-                  aria-label="批量导入目录"
-                  icon={<FolderOpenOutlined />}
-                  onClick={onBatchImport}
+                  block
+                  aria-label="导入成绩表"
+                  icon={<FileAddOutlined />}
+                  onClick={openImport}
                 >
-                  批量导入目录
+                  导入成绩表
                 </Button>
+                <Typography.Text type="secondary">已有 XLS、XLSX 或 CSV 文件</Typography.Text>
+              </div>
+              {onBatchImport && (
+                <div className="course-import-action course-import-action-wide">
+                  <Button
+                    block
+                    aria-label="批量导入目录"
+                    icon={<FolderOpenOutlined />}
+                    onClick={onBatchImport}
+                  >
+                    批量导入目录
+                  </Button>
+                  <Typography.Text type="secondary">
+                    一次扫描多个成绩表，适合整理好的文件夹
+                  </Typography.Text>
+                </div>
               )}
-            </Space>
+              {onAcademicImport && (
+                <div className="course-import-action">
+                  <Button
+                    block
+                    type="primary"
+                    aria-label="从教务系统导入"
+                    icon={<GlobalOutlined />}
+                    onClick={onAcademicImport}
+                  >
+                    从教务系统导入
+                  </Button>
+                  <Typography.Text type="secondary">
+                    登录后在成绩查询页面点击“导出”按钮下载
+                  </Typography.Text>
+                </div>
+              )}
+            </div>
           </section>
           <Divider plain className="course-entry-divider">
             或手动填写

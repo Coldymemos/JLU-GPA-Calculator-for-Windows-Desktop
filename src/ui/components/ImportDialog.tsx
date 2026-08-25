@@ -11,7 +11,7 @@ import {
   Upload
 } from 'antd';
 import type { UploadProps } from 'antd';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { mergeCourses } from '../../application/merge-courses';
 import type { Course } from '../../domain/course/course.types';
 import {
@@ -26,11 +26,13 @@ import {
 interface Props {
   open: boolean;
   existingCourses: Course[];
+  /** 由桌面端教务 WebView 捕获的导出文件；提供后自动进入预览。 */
+  initialFile?: File;
   onCancel: () => void;
   onCommit: (courses: Course[], mode: ImportMergeMode) => Promise<MergeResult>;
 }
 
-export function ImportDrawer({ open, existingCourses, onCancel, onCommit }: Props) {
+export function ImportDrawer({ open, existingCourses, initialFile, onCancel, onCommit }: Props) {
   const [file, setFile] = useState<File>();
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string>();
@@ -72,6 +74,12 @@ export function ImportDrawer({ open, existingCourses, onCancel, onCommit }: Prop
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!open || !initialFile) return;
+    const timer = window.setTimeout(() => void parse(initialFile), 0);
+    return () => window.clearTimeout(timer);
+  }, [initialFile, open]);
 
   // 预览变化时无需同步：Select 取值优先手动覆盖，其次自动识别结果
   const needsMapping = Boolean(
@@ -140,7 +148,11 @@ export function ImportDrawer({ open, existingCourses, onCancel, onCommit }: Prop
           <p className="ant-upload-text">点击或拖入成绩表</p>
           <p className="ant-upload-hint">选择后先预览，确认前不会修改已保存课程</p>
         </Upload.Dragger>
-        {file && <Typography.Text type="secondary">当前文件：{file.name}</Typography.Text>}
+        {(file ?? initialFile) && (
+          <Typography.Text type="secondary">
+            当前文件：{(file ?? initialFile)?.name}
+          </Typography.Text>
+        )}
         {sheetNames.length > 1 && (
           <Space wrap>
             <Typography.Text strong>选择工作表：</Typography.Text>
@@ -150,7 +162,8 @@ export function ImportDrawer({ open, existingCourses, onCancel, onCommit }: Prop
               options={sheetNames.map((name) => ({ label: name, value: name }))}
               onChange={(name) => {
                 setSelectedSheet(name);
-                if (file) void parse(file, name);
+                const currentFile = file ?? initialFile;
+                if (currentFile) void parse(currentFile, name);
               }}
             />
           </Space>

@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop/actions/workflows/desktop.yml"><img src="https://github.com/Coldymemos/JLU-GPA-Calculator-for-Windows-Desktop/actions/workflows/desktop.yml/badge.svg" alt="Windows 构建状态" /></a>
-  <img src="https://img.shields.io/badge/version-1.0.2-8f2c3e" alt="当前版本 1.0.2" />
+  <img src="https://img.shields.io/badge/version-1.0.3-8f2c3e" alt="当前版本 1.0.3" />
   <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4?logo=windows" alt="支持 Windows 10 和 Windows 11" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-f39c12" alt="PolyForm Noncommercial License" /></a>
 </p>
@@ -31,6 +31,7 @@ JLU GPA Desktop 可以在本机管理课程成绩，计算保研 GPA、加权平
 | 三类成绩计算   | 计算保研 GPA、加权平均分和算术平均分，并展示纳入与排除课程                       |
 | 未来课程规划   | 输入目标值，反推所需课程数、课程学分和模拟成绩，查看不同未来成绩下的敏感度       |
 | 成绩表导入     | 导入 `.xls`、`.xlsx`、`.csv`，支持多工作表、导入预览、表头映射和逐行问题报告     |
+| 教务系统导入   | 在应用内打开吉林大学 VPN，用户手动登录并点击官方导出后自动进入导入预览           |
 | 目录批量导入   | 扫描整个目录，识别成绩表、处理重复文件，并提供逐文件导入报告                     |
 | 自定义计算规则 | 分别设置三类结果的课程类型、关键词和课程号排除规则，保存多套规则并进行结果对照   |
 | 多档案管理     | 为不同阶段或不同计算方案建立独立成绩档案，课程、规则和设置互不影响               |
@@ -52,8 +53,8 @@ JLU GPA Desktop 可以在本机管理课程成绩，计算保研 GPA、加权平
 
 ## 快速上手
 
-1. 打开应用，在“课程”页面手动添加课程，或导入教务系统导出的 `.xls`、`.xlsx`、`.csv` 成绩表。
-2. 检查导入预览、字段映射和异常行，确认后保存课程。
+1. 打开应用，在“课程”页面手动添加课程，或点击“从教务系统导入”，在应用内窗口完成 VPN 和教务系统登录后点击官方导出。
+2. 检查导入预览、字段映射和异常行，确认后保存课程；应用不会读取或保存 VPN 账号密码。
 3. 在“计算规则”和各结果的“排除规则”中核对当前计算口径。
 4. 点击“开始计算”，查看保研 GPA、加权平均分和算术平均分。
 5. 打开“目标规划”，输入目标值和每门模拟课学分，查看未来课程与成绩需求。
@@ -63,7 +64,8 @@ JLU GPA Desktop 可以在本机管理课程成绩，计算保研 GPA、加权平
 
 ## 数据与隐私
 
-- 应用运行时不需要登录账号，也不会把课程和成绩上传到服务器；
+- 除用户主动使用教务系统导入外，应用不需要登录账号；教务登录在内嵌网页中完成，账号密码不会交给应用保存；
+- 应用不会把课程和成绩上传到服务器；
 - 桌面数据保存在 `%APPDATA%\com.coldymemos.jlugpa.desktop\jlu-gpa-desktop.sqlite3`；
 - 手动备份和自动备份均由用户选择保存位置；
 - 恢复数据库前会检查 SQLite 完整性和 SHA-256 校验和，并保留恢复前副本；
